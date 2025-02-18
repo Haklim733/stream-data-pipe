@@ -1,0 +1,14 @@
+# node
+**/node_modules
+
+# sst
+.sst
+
+#.env
+*.env*
+
+**dist**
+
+# Supabase
+**/supabase/.branches
+**/supabase/.temp

@@ -1,0 +1,28 @@
+# MQTT
+mqtt.log
+mqtt_config.json
+
+# Apache Flink
+flink-conf.yaml
+flink-logs/
+lib/
+
+# Apache Kafka
+kafka-logs/
+zookeeper-data/
+
+# TypeScript
+node_modules/
+dist/
+*.js
+*.js.map
+*.d.ts
+
+# General
+*.iml
+*.idea/
+*.vscode/
+target/
+build/
+.gradle/
+.settings/
