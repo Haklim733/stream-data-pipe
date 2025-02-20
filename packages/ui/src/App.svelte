@@ -2,6 +2,7 @@
   import { onMount } from "svelte";
 
   let tables = [];
+  console.log(import.meta.env.VITE_ICEBERG_URL);
 
   onMount(async () => {
     const response = await fetch(`${import.meta.env.VITE_ICEBERG_URL}/tables`);

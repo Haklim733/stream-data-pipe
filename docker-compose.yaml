@@ -1,12 +1,34 @@
 services:
+  mosquitto:
+    image: eclipse-mosquitto:latest
+    container_name: mosquitto
+    ports:
+      - "1883:1883"
+      - 8883:8883
+    volumes:
+      - ./packages/mosquitto/config:/mosquitto/config
+      - ./packages/mosquitto/data:/mosquitto/data
+      - ./packages/mosquitto/log:/mosquitto/log
+  mqtt-pub:
+    container_name: mqtt-pub
+    build:
+      context: packages/mosquitto
+      dockerfile: Dockerfile
+    depends_on:
+      - mosquitto
+    volumes:
+      - ./packages/mosquitto/src:/app/src
   spark-iceberg:
-    image: tabulario/spark-iceberg
+    # image: tabulario/spark-iceberg
     container_name: spark-iceberg
-    build: spark/
+    build:
+      context: packages/spark
+      dockerfile: Dockerfile
     networks:
       iceberg_net:
     depends_on:
-      - rest
+      # - rest
+      - polaris
       - minio
     volumes:
       - ./warehouse:/home/iceberg/warehouse
@@ -15,25 +37,45 @@ services:
       - AWS_ACCESS_KEY_ID=admin
       - AWS_SECRET_ACCESS_KEY=password
       - AWS_REGION=us-east-1
+      - POLARIS_HOST=polaris
     ports:
       - 8888:8888
       - 8080:8080
       - 10000:10000
       - 10001:10001
-  rest:
-    image: apache/iceberg-rest-fixture
-    container_name: iceberg-rest
+  polaris:
+    image: apache/polaris:latest
     networks:
       iceberg_net:
     ports:
-      - 8181:8181
+      - "8181:8181"
+      - "8182"
     environment:
-      - AWS_ACCESS_KEY_ID=admin
-      - AWS_SECRET_ACCESS_KEY=password
-      - AWS_REGION=us-east-1
-      - CATALOG_WAREHOUSE=s3://warehouse/
-      - CATALOG_IO__IMPL=org.apache.iceberg.aws.s3.S3FileIO
-      - CATALOG_S3_ENDPOINT=http://minio:9000
+      AWS_REGION: us-east-1
+      AWS_ACCESS_KEY_ID: admin
+      AWS_SECRET_ACCESS_KEY: password
+      POLARIS_BOOTSTRAP_CREDENTIALS: default-realm,root,s3cr3t
+      polaris.realm-context.realms: default-realm
+      quarkus.otel.sdk.disabled: "true"
+    healthcheck:
+      test: ["CMD", "curl", "http://localhost:8182/healthcheck"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+  # rest:
+  #   image: apache/iceberg-rest-fixture
+  #   container_name: iceberg-rest
+  #   networks:
+  #     iceberg_net:
+  #   ports:
+  #     - 8181:8181
+  #   environment:
+  #     - AWS_ACCESS_KEY_ID=admin
+  #     - AWS_SECRET_ACCESS_KEY=password
+  #     - AWS_REGION=us-east-1
+  #     - CATALOG_WAREHOUSE=s3://warehouse/
+  #     - CATALOG_IO__IMPL=org.apache.iceberg.aws.s3.S3FileIO
+  #     - CATALOG_S3_ENDPOINT=http://minio:9000
   minio:
     image: minio/minio
     container_name: minio
@@ -68,36 +110,66 @@ services:
       /usr/bin/mc policy set public minio/warehouse;
       tail -f /dev/null
       "
-  flink-jobmanager:
-    image: flink:latest
-    ports:
-      - "8081:8081"
-    command: jobmanager
-    networks:
-      iceberg_net:
-    environment:
-      - |
-        FLINK_PROPERTIES=
-        jobmanager.rpc.address: flink-jobmanager
-      - AWS_ACCESS_KEY_ID=admin
-      - AWS_SECRET_ACCESS_KEY=password
-      - AWS_REGION=us-east-1
-  flink-taskmanager:
-    image: flink:latest
-    depends_on:
-      - flink-jobmanager
-    command: taskmanager
-    networks:
-      iceberg_net:
-    scale: 1
-    environment:
-      - |
-        FLINK_PROPERTIES=
-        jobmanager.rpc.address: flink-jobmanager
-        taskmanager.numberOfTaskSlots: 2
-      - AWS_ACCESS_KEY_ID=admin
-      - AWS_SECRET_ACCESS_KEY=password
-      - AWS_REGION=us-east-1
+  # kafka-broker:
+  #   image: apache/kafka-native:latest
+  #   container_name: kafka-broker
+  #   ports:
+  #     - "9092:9092"
+  #   networks:
+  #     iceberg_net:
+  #   environment:
+  #     - AWS_ACCESS_KEY_ID=admin
+  #     - AWS_SECRET_ACCESS_KEY=password
+  #     - AWS_REGION=us-east-1
+  #     - KAFKA_NODE_ID=1
+  #     - KAFKA_PROCESS_ROLES=broker,controller
+  #     - KAFKA_LISTENERS=PLAINTEXT://:9092,CONTROLLER://:9093
+  #     - KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://localhost:9092
+  #     - KAFKA_CONTROLLER_LISTENER_NAMES=CONTROLLER
+  #     - KAFKA_LISTENER_SECURITY_PROTOCOL_MAP=CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+  #     - KAFKA_CONTROLLER_QUORUM_VOTERS=1@localhost:9093
+  #     - KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR=1
+  #     - KAFKA_TRANSACTION_STATE_LOG_MIN_ISR=1
+  #     - KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS=0
+  #     - KAFKA_NUM_PARTITIONS=1
+  #     - KAFKA_AUTO_CREATE_TOPICS_ENABLE="true"  # Kafka will automatically create topics if needed.
+  #     - KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR=1  # Since we’re running one broker, one replica is enough.
+  #     - KAFKA_LOG_RETENTION_HOURS=168  # Keep logs for 7 days.
+  #     - KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS=0  # No delay for consumer rebalancing.
+  #     - CLUSTER_ID="Mk3OEYBSD34fcwNTJENDM2Qk"  # A unique ID for the Kafka cluster.
+  #   volumes:
+  #   - /var/run/docker.sock:/var/run/docker.sock
+  #   - ./data:/var/lib/kafka/data  # Store Kafka logs on your local machine.
+  # flink-jobmanager:
+  #   image: flink:latest
+  #   ports:
+  #     - "8081:8081"
+  #   command: jobmanager
+  #   networks:
+  #     iceberg_net:
+  #   environment:
+  #     - |
+  #       FLINK_PROPERTIES=
+  #       jobmanager.rpc.address: flink-jobmanager
+  #     - AWS_ACCESS_KEY_ID=admin
+  #     - AWS_SECRET_ACCESS_KEY=password
+  #     - AWS_REGION=us-east-1
+  # flink-taskmanager:
+  #   image: flink:latest
+  #   depends_on:
+  #     - flink-jobmanager
+  #   command: taskmanager
+  #   networks:
+  #     iceberg_net:
+  #   scale: 1
+  #   environment:
+  #     - |
+  #       FLINK_PROPERTIES=
+  #       jobmanager.rpc.address: flink-jobmanager
+  #       taskmanager.numberOfTaskSlots: 2
+  #     - AWS_ACCESS_KEY_ID=admin
+  #     - AWS_SECRET_ACCESS_KEY=password
+  #     - AWS_REGION=us-east-1
   # svelte-webapp:
   #     build: ./svelte-webapp
   #     ports:
