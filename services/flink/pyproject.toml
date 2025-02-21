@@ -1,0 +1,9 @@
+[project]
+name = "flink"
+version = "0.1.0"
+description = "test stream processing using flink"
+readme = "README.md"
+requires-python = "~=3.11"
+dependencies = [
+    "apache-flink>=1.20.1",
+]

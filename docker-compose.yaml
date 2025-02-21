@@ -6,22 +6,22 @@ services:
   #     - "1883:1883"
   #     - 8883:8883
   #   volumes:
-  #     - ./packages/mosquitto/config:/mosquitto/config
-  #     - ./packages/mosquitto/data:/mosquitto/data
-  #     - ./packages/mosquitto/log:/mosquitto/log
+  #     - ./services/mosquitto/config:/mosquitto/config
+  #     - ./services/mosquitto/data:/mosquitto/data
+  #     - ./services/mosquitto/log:/mosquitto/log
   # mqtt-pub:
   #   container_name: mqtt-pub
   #   build:
-  #     context: packages/mosquitto
+  #     context: services/mosquitto
   #     dockerfile: Dockerfile
   #   depends_on:
   #     - mosquitto
   #   volumes:
-  #     - ./packages/mosquitto/src:/app/src
+  #     - ./services/mosquitto/src:/app/src
   spark-iceberg:
     container_name: spark-iceberg
     build:
-      context: packages/spark
+      context: services/spark
       dockerfile: Dockerfile
     networks:
       iceberg_net:
@@ -29,10 +29,10 @@ services:
       - polaris
       - minio
     volumes:
-      - ./packages/spark/warehouse:/home/iceberg/warehouse
-      - ./packages/spark/notebooks:/home/iceberg/notebooks/notebooks
-      - ./packages/spark/data:/home/iceberg/data
-      - ./packages/spark/tmp:/tmp/spark-events # needed using spark image and docker file
+      - ./services/spark/warehouse:/home/iceberg/warehouse
+      - ./services/spark/notebooks:/home/iceberg/notebooks/notebooks
+      - ./services/spark/data:/home/iceberg/data
+      - ./services/spark/tmp:/tmp/spark-events # needed using spark image and docker file
     environment:
       - AWS_ACCESS_KEY_ID=admin
       - AWS_SECRET_ACCESS_KEY=password
@@ -67,7 +67,7 @@ services:
       timeout: 10s
       retries: 5
     volumes:
-      - ./packages/polaris/credentials:/tmp/credentials/
+      - ./services/polaris/credentials:/tmp/credentials/
   # rest:
   #   image: apache/iceberg-rest-fixture
   #   container_name: iceberg-rest
@@ -176,6 +176,8 @@ services:
       - AWS_ACCESS_KEY_ID=admin
       - AWS_SECRET_ACCESS_KEY=password
       - AWS_REGION=us-east-1
+    volumes:
+      - ./services/flink/jars:/opt/flink/lib/
   # svelte-webapp:
   #     build: ./svelte-webapp
   #     ports:
