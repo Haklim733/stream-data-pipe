@@ -1,25 +1,24 @@
 services:
-  mosquitto:
-    image: eclipse-mosquitto:latest
-    container_name: mosquitto
-    ports:
-      - "1883:1883"
-      - 8883:8883
-    volumes:
-      - ./packages/mosquitto/config:/mosquitto/config
-      - ./packages/mosquitto/data:/mosquitto/data
-      - ./packages/mosquitto/log:/mosquitto/log
-  mqtt-pub:
-    container_name: mqtt-pub
-    build:
-      context: packages/mosquitto
-      dockerfile: Dockerfile
-    depends_on:
-      - mosquitto
-    volumes:
-      - ./packages/mosquitto/src:/app/src
+  # mosquitto:
+  #   image: eclipse-mosquitto:latest
+  #   container_name: mosquitto
+  #   ports:
+  #     - "1883:1883"
+  #     - 8883:8883
+  #   volumes:
+  #     - ./packages/mosquitto/config:/mosquitto/config
+  #     - ./packages/mosquitto/data:/mosquitto/data
+  #     - ./packages/mosquitto/log:/mosquitto/log
+  # mqtt-pub:
+  #   container_name: mqtt-pub
+  #   build:
+  #     context: packages/mosquitto
+  #     dockerfile: Dockerfile
+  #   depends_on:
+  #     - mosquitto
+  #   volumes:
+  #     - ./packages/mosquitto/src:/app/src
   spark-iceberg:
-    # image: tabulario/spark-iceberg
     container_name: spark-iceberg
     build:
       context: packages/spark
@@ -27,17 +26,19 @@ services:
     networks:
       iceberg_net:
     depends_on:
-      # - rest
       - polaris
       - minio
     volumes:
-      - ./warehouse:/home/iceberg/warehouse
-      - ./notebooks:/home/iceberg/notebooks/notebooks
+      - ./packages/spark/warehouse:/home/iceberg/warehouse
+      - ./packages/spark/notebooks:/home/iceberg/notebooks/notebooks
+      - ./packages/spark/data:/home/iceberg/data
+      - ./packages/spark/tmp:/tmp/spark-events # needed using spark image and docker file
     environment:
       - AWS_ACCESS_KEY_ID=admin
       - AWS_SECRET_ACCESS_KEY=password
       - AWS_REGION=us-east-1
       - POLARIS_HOST=polaris
+      - JUPYTER_PASSWORD=password
     ports:
       - 8888:8888
       - 8080:8080
@@ -45,6 +46,7 @@ services:
       - 10001:10001
   polaris:
     image: apache/polaris:latest
+    container_name: polaris
     networks:
       iceberg_net:
     ports:
@@ -54,14 +56,18 @@ services:
       AWS_REGION: us-east-1
       AWS_ACCESS_KEY_ID: admin
       AWS_SECRET_ACCESS_KEY: password
-      POLARIS_BOOTSTRAP_CREDENTIALS: default-realm,root,s3cr3t
-      polaris.realm-context.realms: default-realm
+      POLARIS_BOOTSTRAP_CREDENTIALS: POLARIS,root,secret
+      POLARIS.REALM-CONTEXT.REALMS: default-realm
+      quarkus.log.file.enable: "false"
       quarkus.otel.sdk.disabled: "true"
+      POLARIS.REALM-CONTEXT.HEADER-NAME: default-realm
     healthcheck:
       test: ["CMD", "curl", "http://localhost:8182/healthcheck"]
       interval: 10s
       timeout: 10s
       retries: 5
+    volumes:
+      - ./packages/polaris/credentials:/tmp/credentials/
   # rest:
   #   image: apache/iceberg-rest-fixture
   #   container_name: iceberg-rest

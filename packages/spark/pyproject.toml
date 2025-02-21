@@ -1,0 +1,19 @@
+[project]
+name = "spark"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.11,<3.12"
+dependencies = [
+    "duckdb-engine>=0.15.0",
+    "matplotlib>=3.10.0",
+    "notebook>=7.3.2",
+    "polaris-management",
+    "py4j>=0.10.9.7",
+    "pyiceberg[duckdb,pandas,pyarrow]>=0.8.1",
+    "pyspark[sql,connect,pandas_on_spark]==3.5.4",
+    "scipy>=1.15.2",
+]
+
+[tool.uv.sources]
+polaris-management = { git = "https://github.com/apache/polaris.git", subdirectory = "regtests/client/python" }

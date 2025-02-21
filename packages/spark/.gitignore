@@ -1,0 +1,5 @@
+.venv
+notebooks
+warehouse
+data
+tmp
