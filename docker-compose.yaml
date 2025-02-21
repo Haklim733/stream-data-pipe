@@ -146,36 +146,36 @@ services:
   #   volumes:
   #   - /var/run/docker.sock:/var/run/docker.sock
   #   - ./data:/var/lib/kafka/data  # Store Kafka logs on your local machine.
-  # flink-jobmanager:
-  #   image: flink:latest
-  #   ports:
-  #     - "8081:8081"
-  #   command: jobmanager
-  #   networks:
-  #     iceberg_net:
-  #   environment:
-  #     - |
-  #       FLINK_PROPERTIES=
-  #       jobmanager.rpc.address: flink-jobmanager
-  #     - AWS_ACCESS_KEY_ID=admin
-  #     - AWS_SECRET_ACCESS_KEY=password
-  #     - AWS_REGION=us-east-1
-  # flink-taskmanager:
-  #   image: flink:latest
-  #   depends_on:
-  #     - flink-jobmanager
-  #   command: taskmanager
-  #   networks:
-  #     iceberg_net:
-  #   scale: 1
-  #   environment:
-  #     - |
-  #       FLINK_PROPERTIES=
-  #       jobmanager.rpc.address: flink-jobmanager
-  #       taskmanager.numberOfTaskSlots: 2
-  #     - AWS_ACCESS_KEY_ID=admin
-  #     - AWS_SECRET_ACCESS_KEY=password
-  #     - AWS_REGION=us-east-1
+  flink-jobmanager:
+    image: flink:latest
+    ports:
+      - "8081:8081"
+    command: jobmanager
+    networks:
+      iceberg_net:
+    environment:
+      - |
+        FLINK_PROPERTIES=
+        jobmanager.rpc.address: flink-jobmanager
+      - AWS_ACCESS_KEY_ID=admin
+      - AWS_SECRET_ACCESS_KEY=password
+      - AWS_REGION=us-east-1
+  flink-taskmanager:
+    image: flink:latest
+    depends_on:
+      - flink-jobmanager
+    command: taskmanager
+    networks:
+      iceberg_net:
+    scale: 1
+    environment:
+      - |
+        FLINK_PROPERTIES=
+        jobmanager.rpc.address: flink-jobmanager
+        taskmanager.numberOfTaskSlots: 2
+      - AWS_ACCESS_KEY_ID=admin
+      - AWS_SECRET_ACCESS_KEY=password
+      - AWS_REGION=us-east-1
   # svelte-webapp:
   #     build: ./svelte-webapp
   #     ports:
