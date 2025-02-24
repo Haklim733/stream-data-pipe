@@ -30,7 +30,7 @@ services:
       - minio
     volumes:
       - ./services/spark/warehouse:/home/iceberg/warehouse
-      - ./services/spark/notebooks:/home/iceberg/notebooks/notebooks
+      - ./services/spark/notebooks:/home/iceberg/notebooks/
       - ./services/spark/data:/home/iceberg/data
       - ./services/spark/tmp:/tmp/spark-events # needed using spark image and docker file
     environment:
@@ -147,7 +147,8 @@ services:
   #   - /var/run/docker.sock:/var/run/docker.sock
   #   - ./data:/var/lib/kafka/data  # Store Kafka logs on your local machine.
   flink-jobmanager:
-    image: flink:latest
+    container_name: flink-jobmanager
+    build: ./services/flink
     ports:
       - "8081:8081"
     command: jobmanager
@@ -161,7 +162,8 @@ services:
       - AWS_SECRET_ACCESS_KEY=password
       - AWS_REGION=us-east-1
   flink-taskmanager:
-    image: flink:latest
+    build: ./services/flink
+    container_name: flink-taskmanager
     depends_on:
       - flink-jobmanager
     command: taskmanager
@@ -177,7 +179,7 @@ services:
       - AWS_SECRET_ACCESS_KEY=password
       - AWS_REGION=us-east-1
     volumes:
-      - ./services/flink/jars:/opt/flink/lib/
+      - ./services/flink/jars:/opt/flink/lib/extra/
   # svelte-webapp:
   #     build: ./svelte-webapp
   #     ports:

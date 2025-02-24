@@ -18,12 +18,16 @@ WORKDIR "${HOME}"
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     git \
+    python3-pip \ 
+    python3-dev \
     vim \
     unzip \
     sudo \
     ssh && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
+
+RUN ln -s /usr/bin/python3 /usr/bin/python
 
 WORKDIR ${SPARK_HOME}
 
@@ -66,7 +70,7 @@ ENV JUPYTER_PORT=8888
 
 # Add a notebook command
 RUN echo '#! /bin/sh' >> /bin/notebook \
-    && echo 'export PYSPARK_DRIVER_PYTHON=jupyter notebook' >> /bin/notebook \
+    && echo 'export PYSPARK_DRIVER_PYTHON=jupyter-notebook' >> /bin/notebook \
     && echo "export PYSPARK_DRIVER_PYTHON_OPTS=\"--notebook-dir=/home/iceberg/notebooks --ip='*' --NotebookApp.token='' --NotebookApp.password='' --port=8888 --no-browser --allow-root\"" >> /bin/notebook \
     && echo "pyspark" >> /bin/notebook \
     && chmod u+x /bin/notebook
@@ -90,5 +94,5 @@ WORKDIR "${HOME}"
 COPY entrypoint.sh .
 RUN chmod +x entrypoint.sh
 
-ENTRYPOINT ["./entrypoint.sh"]
+# ENTRYPOINT ["./entrypoint.sh"] # configure elsewhere
 CMD ["notebook"]

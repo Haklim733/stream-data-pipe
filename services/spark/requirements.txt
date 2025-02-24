@@ -177,13 +177,17 @@ jupyter-server==2.15.0
 jupyter-server-terminals==0.5.3
     # via jupyter-server
 jupyterlab==4.3.5
-    # via notebook
+    # via
+    #   jupyterlab-vim
+    #   notebook
 jupyterlab-pygments==0.3.0
     # via nbconvert
 jupyterlab-server==2.27.3
     # via
     #   jupyterlab
     #   notebook
+jupyterlab-vim==4.1.4
+    # via spark (pyproject.toml)
 kiwisolver==1.4.8
     # via matplotlib
 markdown-it-py==3.0.0
@@ -265,7 +269,7 @@ pillow==11.1.0
     # via matplotlib
 platformdirs==4.3.6
     # via jupyter-core
-polaris-management @ git+https://github.com/apache/polaris.git@c96a133f5777257d4c5372dc15fb0cad2af50a8c#subdirectory=regtests/client/python
+polaris-management @ git+https://github.com/apache/polaris.git@61a954ca9ce996d43db56a6438036a29db746143#subdirectory=regtests/client/python
     # via spark (pyproject.toml)
 prometheus-client==0.21.1
     # via jupyter-server

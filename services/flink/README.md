@@ -5,22 +5,17 @@ NOT READY FOR USE
 
 # Iceberg Flink Demo
 
-This demo extends the Iceberg demo setup to include Flink. Included is a standalone Flink application that generates random Lord of the Rings
-records and streams them into an Iceberg table using Flink.
+This extends the Iceberg demo setup for Flink from databricks-spark-iceberg github repo. Included is a standalone Flink application that generates random Lord of the Rings records and streams them into an Iceberg table using Flink as well extending the datastreams tutorial from the apache flink documentation.
 
-Clone this repository, change into the `flink-example` directory, and start up the docker environment.
+It requires the iceberg jar to be downloaded
 
 ```sh
-git clone git@github.com:tabular-io/docker-spark-iceberg.git
-cd flink-example
-docker compose up
+curl -L -o $(pwd)/jars/iceberg-flink-runtime-0.12.1.jar  https://repo1.maven.org/maven2/org/apache/iceberg/iceberg-flink-runtime/0.12.1/iceberg-flink-runtime-0.12.1.jar
 ```
 
-Build the Flink application.
+# spark / jupyter notebooks
 
-```
-./gradlew clean shadowJar
-```
+As a monorepo, the spark-iceberg container also includes pyflink so that service should be used for interactive sessions with flink.
 
 Navigate to [http://localhost:8888](http://localhost:8888) and create a new `Python3` notebook. Using the `%%sql` magic, create an `lor` database.
 
