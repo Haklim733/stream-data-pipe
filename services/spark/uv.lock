@@ -957,6 +957,15 @@ wheels = [
 ]
 
 [[package]]
+name = "kafka-python"
+version = "2.0.4"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/01/9e/db674e64d409e01164cd1f9903caeba7c294b2712a44e32760123b9331a8/kafka_python-2.0.4.tar.gz", hash = "sha256:cd556fdc73ed1e2e72247de234d209f452267d7b2e7289f6e51c50a44f1f48dc", size = 281058 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/2e/31/f41c1362aa0e12b7bdd0c1bd606ca57893f2dce84a1f5a5b9936ffe81b51/kafka_python-2.0.4-py2.py3-none-any.whl", hash = "sha256:614ee11e7d659b3cfe162a67a103c60231a336c41911ad89d8c67f74bf43db25", size = 251241 },
+]
+
+[[package]]
 name = "kiwisolver"
 version = "1.4.8"
 source = { registry = "https://pypi.org/simple" }
@@ -1927,6 +1936,7 @@ dependencies = [
     { name = "apache-flink" },
     { name = "duckdb-engine" },
     { name = "jupyterlab-vim" },
+    { name = "kafka-python" },
     { name = "matplotlib" },
     { name = "notebook" },
     { name = "polaris-management" },
@@ -1941,6 +1951,7 @@ requires-dist = [
     { name = "apache-flink", specifier = "==1.20.1" },
     { name = "duckdb-engine", specifier = ">=0.15.0" },
     { name = "jupyterlab-vim", specifier = ">=4.1.4" },
+    { name = "kafka-python", specifier = ">=2.0.4" },
     { name = "matplotlib", specifier = ">=3.10.0" },
     { name = "notebook", specifier = ">=7.3.2" },
     { name = "polaris-management", git = "https://github.com/apache/polaris.git?subdirectory=regtests%2Fclient%2Fpython" },

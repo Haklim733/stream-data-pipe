@@ -188,6 +188,8 @@ jupyterlab-server==2.27.3
     #   notebook
 jupyterlab-vim==4.1.4
     # via spark (pyproject.toml)
+kafka-python==2.0.4
+    # via spark (pyproject.toml)
 kiwisolver==1.4.8
     # via matplotlib
 markdown-it-py==3.0.0
