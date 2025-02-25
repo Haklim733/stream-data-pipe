@@ -17,6 +17,7 @@ WORKDIR "${HOME}"
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
+    docker-ce-cli \
     git \
     python3-pip \ 
     python3-dev \
@@ -56,12 +57,11 @@ RUN curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2
 #     && rm ijava-1.3.0.zip
 # ENV IJAVA_CLASSPATH=${SPARK_HOME}/jars/*
 
-ENV PYTHONPATH=$SPARK_HOME/python:$SPARK_HOME/python/lib/py4j-0.10.9.7-src.zip:$PYTHONPATH
+ENV PYTHONPATH=$SPARK_HOME/python:$SPARK_HOME/python/lib/py4j-0.10.9.7-src.zip
 
 RUN mkdir -p /home/iceberg/data /home/iceberg/localwarehouse /home/iceberg/notebooks /home/iceberg/warehouse /home/iceberg/spark-events /home/iceberg
 COPY notebooks/ /home/iceberg/notebooks
 
-USER ${NB_UID}
 # Install Jupyter and other python deps
 COPY requirements.txt .
 RUN pip3 install -r requirements.txt

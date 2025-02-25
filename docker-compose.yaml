@@ -18,8 +18,8 @@ services:
   #     - mosquitto
   #   volumes:
   #     - ./services/mosquitto/src:/app/src
-  spark-iceberg:
-    container_name: spark-iceberg
+  spark-notebook:
+    container_name: spark-notebook
     build:
       context: services/spark
       dockerfile: Dockerfile
@@ -33,6 +33,7 @@ services:
       - ./services/spark/notebooks:/home/iceberg/notebooks/
       - ./services/spark/data:/home/iceberg/data
       - ./services/spark/tmp:/tmp/spark-events # needed using spark image and docker file
+      - ./services/spark/src:/home/icberge/notebook/src
     environment:
       - AWS_ACCESS_KEY_ID=admin
       - AWS_SECRET_ACCESS_KEY=password
@@ -43,30 +44,6 @@ services:
       - 8080:8080
       - 10000:10000
       - 10001:10001
-  # polaris:
-  #   image: apache/polaris:latest
-  #   container_name: polaris
-  #   networks:
-  #     iceberg_net:
-  #   ports:
-  #     - "8181:8181"
-  #     - "8182"
-  #   environment:
-  #     AWS_REGION: us-east-1
-  #     AWS_ACCESS_KEY_ID: admin
-  #     AWS_SECRET_ACCESS_KEY: password
-  #     POLARIS_BOOTSTRAP_CREDENTIALS: POLARIS,root,secret
-  #     POLARIS.REALM-CONTEXT.REALMS: default-realm
-  #     quarkus.log.file.enable: "false"
-  #     quarkus.otel.sdk.disabled: "true"
-  #     POLARIS.REALM-CONTEXT.HEADER-NAME: default-realm
-  #   healthcheck:
-  #     test: ["CMD", "curl", "http://localhost:8182/healthcheck"]
-  #     interval: 10s
-  #     timeout: 10s
-  #     retries: 5
-  #   volumes:
-  #     - ./services/polaris/credentials:/tmp/credentials/
   rest:
     image: apache/iceberg-rest-fixture
     container_name: iceberg-rest
@@ -115,36 +92,37 @@ services:
       /usr/bin/mc policy set public minio/warehouse;
       tail -f /dev/null
       "
-  # kafka-broker:
-  #   image: apache/kafka-native:latest
-  #   container_name: kafka-broker
-  #   ports:
-  #     - "9092:9092"
-  #   networks:
-  #     iceberg_net:
-  #   environment:
-  #     - AWS_ACCESS_KEY_ID=admin
-  #     - AWS_SECRET_ACCESS_KEY=password
-  #     - AWS_REGION=us-east-1
-  #     - KAFKA_NODE_ID=1
-  #     - KAFKA_PROCESS_ROLES=broker,controller
-  #     - KAFKA_LISTENERS=PLAINTEXT://:9092,CONTROLLER://:9093
-  #     - KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://localhost:9092
-  #     - KAFKA_CONTROLLER_LISTENER_NAMES=CONTROLLER
-  #     - KAFKA_LISTENER_SECURITY_PROTOCOL_MAP=CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
-  #     - KAFKA_CONTROLLER_QUORUM_VOTERS=1@localhost:9093
-  #     - KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR=1
-  #     - KAFKA_TRANSACTION_STATE_LOG_MIN_ISR=1
-  #     - KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS=0
-  #     - KAFKA_NUM_PARTITIONS=1
-  #     - KAFKA_AUTO_CREATE_TOPICS_ENABLE="true"  # Kafka will automatically create topics if needed.
-  #     - KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR=1  # Since we’re running one broker, one replica is enough.
-  #     - KAFKA_LOG_RETENTION_HOURS=168  # Keep logs for 7 days.
-  #     - KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS=0  # No delay for consumer rebalancing.
-  #     - CLUSTER_ID="Mk3OEYBSD34fcwNTJENDM2Qk"  # A unique ID for the Kafka cluster.
-  #   volumes:
-  #   - /var/run/docker.sock:/var/run/docker.sock
-  #   - ./data:/var/lib/kafka/data  # Store Kafka logs on your local machine.
+  kafka-broker:
+    image: apache/kafka:latest
+    container_name: kafka-broker
+    ports:
+      - 9092:9092
+      - 9093:9093
+    networks:
+      iceberg_net:
+    environment:
+      - AWS_ACCESS_KEY_ID=admin
+      - AWS_SECRET_ACCESS_KEY=password
+      - AWS_REGION=us-east-1
+      - KAFKA_NODE_ID=1
+      - KAFKA_PROCESS_ROLES=broker,controller
+      - KAFKA_LISTENERS=PLAINTEXT://:9092,CONTROLLER://:9093
+      - KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://kafka-broker:9092 # Use the hostname of the Kafka broker container
+      - KAFKA_CONTROLLER_LISTENER_NAMES=CONTROLLER
+      - KAFKA_LISTENER_SECURITY_PROTOCOL_MAP=CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      - KAFKA_CONTROLLER_QUORUM_VOTERS=1@localhost:9093
+      - KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR=1
+      - KAFKA_TRANSACTION_STATE_LOG_MIN_ISR=1
+      - KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS=0
+      - KAFKA_NUM_PARTITIONS=1
+      - KAFKA_AUTO_CREATE_TOPICS_ENABLE=true  # Kafka will automatically create topics if needed.
+      - KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR=1  # Since we’re running one broker, one replica is enough.
+      - KAFKA_LOG_RETENTION_HOURS=24  # Keep logs for 1 day
+      - KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS=0  # No delay for consumer rebalancing.
+      - PATH=$PATH:/opt/kafka/bin
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./services/kafka/logs:/var/lib/kafka/data  # Store Kafka logs on your local machine.
   flink-jobmanager:
     container_name: flink-jobmanager
     build: ./services/flink
@@ -160,6 +138,9 @@ services:
       - AWS_ACCESS_KEY_ID=admin
       - AWS_SECRET_ACCESS_KEY=password
       - AWS_REGION=us-east-1
+    volumes:
+      - ./services/flink/src:/opt/flink/python # Store Kafka logs on your local machine.
+      - ./services/flink/jars:/opt/flink/lib/extra/
   flink-taskmanager:
     build: ./services/flink
     container_name: flink-taskmanager

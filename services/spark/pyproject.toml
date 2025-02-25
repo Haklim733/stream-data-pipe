@@ -10,13 +10,10 @@ dependencies = [
     "jupyterlab-vim>=4.1.4",
     "kafka-python>=2.0.4",
     "matplotlib>=3.10.0",
+    "nltk>=3.9.1",
     "notebook>=7.3.2",
-    "polaris-management",
     "py4j>=0.10.9.7",
     "pyiceberg[duckdb,pandas,pyarrow]",
     "pyspark[sql,connect,pandas_on_spark]==3.5.4",
     "scipy>=1.15.2",
 ]
-
-[tool.uv.sources]
-polaris-management = { git = "https://github.com/apache/polaris.git", subdirectory = "regtests/client/python" }
