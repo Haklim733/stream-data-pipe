@@ -38,6 +38,10 @@ ENV ICEBERG_VERSION=1.8.0
 # Download iceberg spark runtime
 RUN curl https://repo1.maven.org/maven2/org/apache/iceberg/iceberg-spark-runtime-${SPARK_MAJOR_VERSION}_2.12/${ICEBERG_VERSION}/iceberg-spark-runtime-${SPARK_MAJOR_VERSION}_2.12-${ICEBERG_VERSION}.jar -Lo ${SPARK_HOME}/jars/iceberg-spark-runtime-${SPARK_MAJOR_VERSION}_2.12-${ICEBERG_VERSION}.jar
 
+RUN wget https://repo1.maven.org/maven2/org/apache/spark/spark-sql-kafka-0-10_2.12/${SPARK_VERSION}/spark-sql-kafka-0-10_2.12-${SPARK_VERSION}.jar -P ${SPARK_HOME}/jars
+RUN wget https://repo1.maven.org/maven2/org/apache/kafka/kafka-clients/3.9.0/kafka-clients-3.9.0.jar -P ${SPARK_HOME}/jars
+
+# Other Dockerfile content
 # Download AWS bundle
 RUN curl -s https://repo1.maven.org/maven2/org/apache/iceberg/iceberg-aws-bundle/${ICEBERG_VERSION}/iceberg-aws-bundle-${ICEBERG_VERSION}.jar -Lo ${SPARK_HOME}/jars/iceberg-aws-bundle-${ICEBERG_VERSION}.jar
 
@@ -91,6 +95,13 @@ WORKDIR "${HOME}"
 
 COPY entrypoint.sh .
 RUN chmod +x entrypoint.sh
+
+# copy flink binaries to submit jobs only
+COPY --from=flink:1.20-scala_2.12 /opt/flink/bin /opt/flink/bin
+
+COPY startup.py /root/.ipython/profile_default/startup
+
+#for spark streaming
 
 # ENTRYPOINT ["./entrypoint.sh"] # configure elsewhere
 CMD ["notebook"]

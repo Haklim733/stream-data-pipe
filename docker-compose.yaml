@@ -1,23 +1,4 @@
 services:
-  # mosquitto:
-  #   image: eclipse-mosquitto:latest
-  #   container_name: mosquitto
-  #   ports:
-  #     - "1883:1883"
-  #     - 8883:8883
-  #   volumes:
-  #     - ./services/mosquitto/config:/mosquitto/config
-  #     - ./services/mosquitto/data:/mosquitto/data
-  #     - ./services/mosquitto/log:/mosquitto/log
-  # mqtt-pub:
-  #   container_name: mqtt-pub
-  #   build:
-  #     context: services/mosquitto
-  #     dockerfile: Dockerfile
-  #   depends_on:
-  #     - mosquitto
-  #   volumes:
-  #     - ./services/mosquitto/src:/app/src
   notebook:
     container_name: notebook
     build:
@@ -33,7 +14,6 @@ services:
       - ./services/notebook/notebooks:/home/iceberg/notebooks/
       - ./services/notebook/data:/home/iceberg/data
       - ./services/notebook/tmp:/tmp/spark-events # needed using spark image and docker file
-      - ./services/notebook/src:/home/iceberg/notebook/src
     environment:
       - AWS_ACCESS_KEY_ID=admin
       - AWS_SECRET_ACCESS_KEY=password
@@ -143,8 +123,7 @@ services:
       - FLINK_S3_ACCESS_KEY=admin
       - FLINK_S3_SECRET_KEY=password
     volumes:
-      - ./services/flink/src:/opt/flink/app # Store Kafka logs on your local machine.
-      # - ./services/flink/jars:/opt/flink/usrlib
+      - ./services/flink/src:/opt/flink/app
   flink-taskmanager:
     build: ./services/flink
     container_name: flink-taskmanager
@@ -166,8 +145,6 @@ services:
       - FLINK_S3_PATH_STYLE_ACCESS=true
       - FLINK_S3_ACCESS_KEY=admin
       - FLINK_S3_SECRET_KEY=password
-    # volumes:
-    #   - ./services/flink/jars:/opt/flink/usrlib
   # svelte-webapp:
   #     build: ./svelte-webapp
   #     ports:

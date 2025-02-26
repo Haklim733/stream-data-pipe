@@ -1,6 +1,7 @@
 import argparse
 from kafka import KafkaConsumer
-import minio
+import boto3
+import sys
 
 # Kafka consumer settings
 kafka_bootstrap_servers = ['kafka-broker:9092']

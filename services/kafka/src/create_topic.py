@@ -1,7 +1,9 @@
 import argparse
 import logging
 import os
+import random
 import sys
+import time
 from kafka import KafkaProducer 
 from kafka.admin import NewTopic, KafkaAdminClient
 
@@ -35,6 +37,8 @@ def send_to_kafka(topic_name: str, bootstrap_servers: list[str], file_path: str)
         for line in f:
             # Strip the newline character and send the line to Kafka
             producer.send(topic_name, value=line.strip().encode('utf-8'))
+            delay = random.uniform(0.25, 1.5)
+            time.sleep(delay)
 
     # Close the producer
     producer.close()
