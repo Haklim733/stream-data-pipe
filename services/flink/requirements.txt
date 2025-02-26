@@ -106,8 +106,6 @@ ruamel-yaml==0.18.10
     # via apache-flink
 ruamel-yaml-clib==0.2.12
     # via ruamel-yaml
-setuptools==75.8.0
-    # via flink (pyproject.toml)
 six==1.17.0
     # via
     #   hdfs

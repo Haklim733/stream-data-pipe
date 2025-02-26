@@ -18,10 +18,10 @@ services:
   #     - mosquitto
   #   volumes:
   #     - ./services/mosquitto/src:/app/src
-  spark-notebook:
-    container_name: spark-notebook
+  notebook:
+    container_name: notebook
     build:
-      context: services/spark
+      context: services/notebook
       dockerfile: Dockerfile
     networks:
       iceberg_net:
@@ -29,11 +29,11 @@ services:
       - rest
       - minio
     volumes:
-      - ./services/spark/warehouse:/home/iceberg/warehouse
-      - ./services/spark/notebooks:/home/iceberg/notebooks/
-      - ./services/spark/data:/home/iceberg/data
-      - ./services/spark/tmp:/tmp/spark-events # needed using spark image and docker file
-      - ./services/spark/src:/home/icberge/notebook/src
+      - ./services/notebook/warehouse:/home/iceberg/warehouse
+      - ./services/notebook/notebooks:/home/iceberg/notebooks/
+      - ./services/notebook/data:/home/iceberg/data
+      - ./services/notebook/tmp:/tmp/spark-events # needed using spark image and docker file
+      - ./services/notebook/src:/home/iceberg/notebook/src
     environment:
       - AWS_ACCESS_KEY_ID=admin
       - AWS_SECRET_ACCESS_KEY=password
@@ -98,6 +98,7 @@ services:
     ports:
       - 9092:9092
       - 9093:9093
+      - 19092:19092
     networks:
       iceberg_net:
     environment:
@@ -106,10 +107,10 @@ services:
       - AWS_REGION=us-east-1
       - KAFKA_NODE_ID=1
       - KAFKA_PROCESS_ROLES=broker,controller
-      - KAFKA_LISTENERS=PLAINTEXT://:9092,CONTROLLER://:9093
-      - KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://kafka-broker:9092 # Use the hostname of the Kafka broker container
+      - KAFKA_LISTENERS=PLAINTEXT://:9092,CONTROLLER://:9093,EXTERNAL://:19092
+      - KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://kafka-broker:9092,EXTERNAL://localhost:19092
       - KAFKA_CONTROLLER_LISTENER_NAMES=CONTROLLER
-      - KAFKA_LISTENER_SECURITY_PROTOCOL_MAP=CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      - KAFKA_LISTENER_SECURITY_PROTOCOL_MAP=CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,EXTERNAL:PLAINTEXT
       - KAFKA_CONTROLLER_QUORUM_VOTERS=1@localhost:9093
       - KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR=1
       - KAFKA_TRANSACTION_STATE_LOG_MIN_ISR=1
@@ -121,7 +122,6 @@ services:
       - KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS=0  # No delay for consumer rebalancing.
       - PATH=$PATH:/opt/kafka/bin
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
       - ./services/kafka/logs:/var/lib/kafka/data  # Store Kafka logs on your local machine.
   flink-jobmanager:
     container_name: flink-jobmanager
@@ -139,8 +139,8 @@ services:
       - AWS_SECRET_ACCESS_KEY=password
       - AWS_REGION=us-east-1
     volumes:
-      - ./services/flink/src:/opt/flink/python # Store Kafka logs on your local machine.
-      - ./services/flink/jars:/opt/flink/lib/extra/
+      - ./services/flink/src:/opt/flink/app # Store Kafka logs on your local machine.
+      # - ./services/flink/jars:/opt/flink/usrlib
   flink-taskmanager:
     build: ./services/flink
     container_name: flink-taskmanager
@@ -158,8 +158,8 @@ services:
       - AWS_ACCESS_KEY_ID=admin
       - AWS_SECRET_ACCESS_KEY=password
       - AWS_REGION=us-east-1
-    volumes:
-      - ./services/flink/jars:/opt/flink/lib/extra/
+    # volumes:
+    #   - ./services/flink/jars:/opt/flink/usrlib
   # svelte-webapp:
   #     build: ./svelte-webapp
   #     ports:

@@ -17,7 +17,6 @@ WORKDIR "${HOME}"
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
-    docker-ce-cli \
     git \
     python3-pip \ 
     python3-dev \
