@@ -15,9 +15,19 @@ from pyflink.datastream.connectors.kafka import KafkaSource, KafkaSink, KafkaRec
 from pyflink.datastream.connectors.kafka import KafkaOffsetsInitializer
 from pyflink.datastream.functions import MapFunction
 from pyflink.datastream.execution_mode import RuntimeExecutionMode
+from pyflink.datastream.connectors.file_system import FileSink, OutputFileConfig, RollingPolicy, BucketAssigner
+from pyflink.common import Duration, Encoder
+from pyflink.datastream import TimeCharacteristic
+from pyflink.datastream.formats.json import JsonRowDeserializationSchema
 
-# Create configuration
+logger = logging.getLogger(__name__)
+
 config = Configuration()
+config.set_string("s3.endpoint", "http://minio:9000")
+config.set_string("s3.path.style.access", "true")
+config.set_string("s3.access.key", "admin")
+config.set_string("s3.secret.key", "password")
+# config.set_string("state.backend", "filesystem")
 # Configure TaskManager connection
 # config.set_string("jobmanager.address", "localhost")
 # config.set_integer("jobmanager.port", 8081)
@@ -62,6 +72,9 @@ class SentimentAnalysis(MapFunction):
                 break  # Stop searching if any negative keyword is found
         return f"Post: {value} | Sentiment: {sentiment}"
 
+class SimpleBucketAssigner(BucketAssigner):
+    def get_bucket_id(self, element, context):
+        return "flink-output"
 
 def sentiment_analysis_job(topic_name: str, bootstrap_servers: str, group_id: str ):
     """
@@ -80,6 +93,7 @@ def sentiment_analysis_job(topic_name: str, bootstrap_servers: str, group_id: st
      
     ds = env.from_source(source, WatermarkStrategy.for_monotonous_timestamps(), "Kafka Source")
     stream = ds.map(SentimentAnalysis(), output_type=Types.STRING())
+
     sink = KafkaSink.builder() \
             .set_bootstrap_servers(bootstrap_servers) \
             .set_record_serializer(
@@ -90,10 +104,25 @@ def sentiment_analysis_job(topic_name: str, bootstrap_servers: str, group_id: st
             ) \
             .set_delivery_guarantee(DeliveryGuarantee.AT_LEAST_ONCE) \
             .build()
+    
+    env.enable_checkpointing(30*1000)
 
+    output_path = "s3a://warehouse/output/"
+
+    file_sink = FileSink \
+        .for_row_format(output_path, Encoder.simple_string_encoder()) \
+        .with_bucket_assigner(BucketAssigner.date_time_bucket_assigner()) \
+        .with_output_file_config(OutputFileConfig.builder()
+                                .with_part_prefix('data')
+                                .with_part_suffix('.txt')
+                                .build()) \
+        .with_rolling_policy(RollingPolicy.default_rolling_policy(
+            inactivity_interval=30 * 1000)) \
+        .build()
+    
+    stream.sink_to(file_sink)
     # # Direct the processed data to the sink.
     stream.sink_to(sink)
-
     # Execute the job.
     env.execute()
  

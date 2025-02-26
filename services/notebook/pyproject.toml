@@ -5,8 +5,6 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.11,<3.12"
 dependencies = [
-    "apache-flink==1.20.1",
-    "duckdb-engine>=0.15.0",
     "jupyterlab-vim>=4.1.4",
     "kafka-python>=2.0.4",
     "matplotlib>=3.10.0",

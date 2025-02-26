@@ -50,3 +50,8 @@ gradle-app.setting
 
 # IDEA
 .idea
+
+.env
+
+
+examples

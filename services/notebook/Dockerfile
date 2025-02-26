@@ -78,7 +78,6 @@ RUN mkdir -p /root/.ipython/profile_default/startup
 COPY ipython/startup/00-prettytables.py /root/.ipython/profile_default/startup
 COPY ipython/startup/README /root/.ipython/profile_default/startup
 
-COPY polaris.conf /opt/spark/conf
 RUN chmod u+x /opt/spark/sbin/* && \
     chmod u+x /opt/spark/bin/*
 ENV PATH="/opt/spark/sbin:/opt/spark/bin:${PATH}"

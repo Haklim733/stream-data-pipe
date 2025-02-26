@@ -31,4 +31,6 @@ RUN wget https://repo1.maven.org/maven2/org/apache/flink/flink-sql-connector-kaf
 RUN wget https://repo1.maven.org/maven2/org/apache/kafka/kafka-clients/3.9.0/kafka-clients-3.9.0.jar -P /opt/flink/lib
 
 RUN chown -R flink:flink /opt/flink/lib
-# RUN chown -R flink:flink /opt/flink/usrlib
+
+RUN mkdir ./plugins/s3-fs-presto && \
+    cp ./opt/flink-s3-fs-presto-1.20.1.jar ./plugins/s3-fs-presto/

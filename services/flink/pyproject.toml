@@ -6,5 +6,7 @@ readme = "README.md"
 requires-python = "~=3.10,<3.12"
 dependencies = [
     "apache-flink==1.20.1",
+    "faker>=36.1.1",
     "nltk>=3.9.1",
+    "pyiceberg>=0.8.1",
 ]

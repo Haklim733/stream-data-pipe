@@ -56,7 +56,6 @@ def main(topic_name: str, bootstrap_servers: str, file_path: str=None, client_id
 
 
 if __name__ == "__main__":
-    # bootstrap_servers = 'kafka-broker:9092'
     parser = argparse.ArgumentParser()
     parser.add_argument(
         '--topic',
