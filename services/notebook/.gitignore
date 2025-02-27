@@ -1,5 +1,6 @@
 .venv
-notebooks
 warehouse
-data
+data/
+notebooks/*
+!notebooks/kafka-flink-sentiment.ipynb
 tmp

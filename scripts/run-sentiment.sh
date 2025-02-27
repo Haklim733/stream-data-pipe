@@ -7,4 +7,4 @@ export TOPIC='sentiment'
 #source
 docker exec notebook /usr/bin/python /home/spark/kafka/create_topic.py --topic=${TOPIC} --file=/home/iceberg/data/brothers-karamazov.txt
 
-docker exec flink-jobmanager flink run -py /opt/flink/app/sentiment_analysis.py --source-topic ${TOPIC} --group-id sentiment-an
+docker exec -d flink-jobmanager flink run -py /opt/flink/app/sentiment_analysis.py --source-topic ${TOPIC} --group-id sentiment-an

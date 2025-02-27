@@ -1,6 +1,6 @@
 .git
 .gitignore
-spark/Dockerfile
+Dockerfile
 README.md
 docker-compose.yml
 .venv
