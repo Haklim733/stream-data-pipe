@@ -15,6 +15,8 @@ RUN apt-get update -y && \
     python3-pip \
     python3-dev \
     vim \
+    unzip \
+    zip \
     ssh && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
@@ -34,3 +36,12 @@ RUN chown -R flink:flink /opt/flink/lib
 
 RUN mkdir ./plugins/s3-fs-presto && \
     cp ./opt/flink-s3-fs-presto-1.20.1.jar ./plugins/s3-fs-presto/
+
+RUN mkdir ./plugins/s3-fs-hadoop && \
+    cp ./opt/flink-s3-fs-hadoop-1.20.1.jar ./plugins/s3-fs-hadoop/
+
+RUN wget https://raw.githubusercontent.com/nltk/nltk_data/gh-pages/packages/tokenizers/punkt_tab.zip
+RUN mkdir -p /opt/flink/nltk_data/tokenizers && \
+    unzip punkt_tab.zip -d /opt/flink/nltk_data/tokenizers \
+    && rm -f punkt_tab.zip
+RUN zip -j punkt_tab.zip /opt/flink/nltk_data/tokenizers/punkt_tab/english/*

@@ -103,5 +103,5 @@ COPY startup.py /root/.ipython/profile_default/startup
 
 #for spark streaming
 
-# ENTRYPOINT ["./entrypoint.sh"] # configure elsewhere
+ENTRYPOINT ["./entrypoint.sh"]
 CMD ["notebook"]

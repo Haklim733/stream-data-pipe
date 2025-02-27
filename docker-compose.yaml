@@ -5,7 +5,7 @@ services:
       context: services/notebook
       dockerfile: Dockerfile
     networks:
-      iceberg_net:
+      datapipe_net:
     depends_on:
       - rest
       - minio
@@ -14,7 +14,10 @@ services:
       - ./services/notebook/notebooks:/home/iceberg/notebooks/
       - ./services/notebook/data:/home/iceberg/data
       - ./services/notebook/tmp:/tmp/spark-events # needed using spark image and docker file
+      - ./services/kafka/src:/home/spark/kafka
+      - ./services/flink/src:/home/spark/flink
     environment:
+      - BOOTSTRAP_SERVERS=kafka-broker:9092
       - AWS_ACCESS_KEY_ID=admin
       - AWS_SECRET_ACCESS_KEY=password
       - AWS_REGION=us-east-1
@@ -28,7 +31,7 @@ services:
     image: apache/iceberg-rest-fixture
     container_name: iceberg-rest
     networks:
-      iceberg_net:
+      datapipe_net:
     ports:
       - 8181:8181
     environment:
@@ -46,7 +49,7 @@ services:
       - MINIO_ROOT_PASSWORD=password
       - MINIO_DOMAIN=minio
     networks:
-      iceberg_net:
+      datapipe_net:
         aliases:
           - warehouse.minio
     ports:
@@ -59,7 +62,7 @@ services:
     image: minio/mc
     container_name: mc
     networks:
-      iceberg_net:
+      datapipe_net:
     environment:
       - AWS_ACCESS_KEY_ID=admin
       - AWS_SECRET_ACCESS_KEY=password
@@ -70,6 +73,10 @@ services:
       /usr/bin/mc rm -r --force minio/warehouse;
       /usr/bin/mc mb minio/warehouse;
       /usr/bin/mc policy set public minio/warehouse;
+      set +o history;
+      /usr/bin/mc admin user add minio user user12345;
+      echo -e "user\nuser12345" | /usr/bin/mc admin user add minio;
+      /usr/bin/mc admin policy attach minio readwrite --user user;
       tail -f /dev/null
       "
   kafka-broker:
@@ -80,7 +87,7 @@ services:
       - 9093:9093
       - 19092:19092
     networks:
-      iceberg_net:
+      datapipe_net:
     environment:
       - AWS_ACCESS_KEY_ID=admin
       - AWS_SECRET_ACCESS_KEY=password
@@ -106,24 +113,32 @@ services:
   flink-jobmanager:
     container_name: flink-jobmanager
     build: ./services/flink
+    depends_on:
+      - minio
     ports:
       - "8081:8081"
     command: jobmanager
     networks:
-      iceberg_net:
+      datapipe_net:
     environment:
       - |
         FLINK_PROPERTIES=
         jobmanager.rpc.address: flink-jobmanager
+        state.backend: filesystem
+        state.checkpoints.dir: file:///opt/flink/checkpoints
+        state.savepoints.dir: file:///opt/flink/savepoints
+        heartbeat.interval: 1000
+        heartbeat.timeout: 5000
+      - BOOTSTRAP_SERVERS=kafka-broker:9092
+      - RUNTIME_ENV=docker 
       - AWS_ACCESS_KEY_ID=admin
       - AWS_SECRET_ACCESS_KEY=password
       - AWS_REGION=us-east-1
-      - FLINK_S3_ENDPOINT=http://minio:9000
-      - FLINK_S3_PATH_STYLE_ACCESS=true
-      - FLINK_S3_ACCESS_KEY=admin
-      - FLINK_S3_SECRET_KEY=password
     volumes:
       - ./services/flink/src:/opt/flink/app
+      - ./services/flink/log/jobmanager:/opt/flink/log
+      - ./services/flink/checkpoints/jobmanager:/opt/flink/checkpoints
+      - ./services/flink/checkpoints/savepoints:/opt/flink/savepoints
   flink-taskmanager:
     build: ./services/flink
     container_name: flink-taskmanager
@@ -131,29 +146,29 @@ services:
       - flink-jobmanager
     command: taskmanager
     networks:
-      iceberg_net:
+      datapipe_net:
     scale: 1
     environment:
       - |
         FLINK_PROPERTIES=
         jobmanager.rpc.address: flink-jobmanager
-        taskmanager.numberOfTaskSlots: 2
+        state.backend: filesystem
+        heartbeat.interval: 1000
+        heartbeat.timeout: 5000
+      - BOOTSTRAP_SERVERS=kafka-broker:9092
+      - RUNTIME_ENV=docker 
       - AWS_ACCESS_KEY_ID=admin
       - AWS_SECRET_ACCESS_KEY=password
       - AWS_REGION=us-east-1
-      - FLINK_S3_ENDPOINT=http://minio:9000
-      - FLINK_S3_PATH_STYLE_ACCESS=true
-      - FLINK_S3_ACCESS_KEY=admin
-      - FLINK_S3_SECRET_KEY=password
-  # svelte-webapp:
+  # iceberg-ui:
   #     build: ./svelte-webapp
   #     ports:
   #       - "5173:5173"
   #     depends_on:
-  #       - iceberg-rest
+          # datapipe_net:
   #       - minio
   #     environment:
   #       - ICEBERG_REST_URL=http://iceberg-rest:8181
   #       - MINIO_URL=http://minio:9000
 networks:
-  iceberg_net:
+  datapipe_net:
