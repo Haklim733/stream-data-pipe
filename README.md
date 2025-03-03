@@ -28,8 +28,9 @@ work in progress
 
 work in progress
 
-## apache kafka -> apache spark -> iceberg
+## apache kafka -> apache spark -> file
 
+program saves kafka topic as a datastream to a text file
 `./scripts/run-spark-stream.sh`
 
 ## logs

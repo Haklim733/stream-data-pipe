@@ -14,6 +14,7 @@ services:
       - ./services/notebook/notebooks:/home/app/notebooks
       - ./services/notebook/data:/home/app/data
       - ./services/notebook/tmp:/tmp # needed using spark image and docker file
+      - ./services/notebook/output:/home/app/output
       - ./services/notebook/src:/home/app/src/
       - ./services/kafka/src:/home/app/kafka/src
       - ./services/flink/src:/home/app/flink/src

@@ -1,15 +1,30 @@
 import argparse
+import csv
+from enum import Enum
+import json
+import io
 import logging
 import os
 import random
 import sys
 import time
 
+
+import avro.schema
+from avro.io import BinaryEncoder, DatumWriter
 from kafka import KafkaProducer
 from kafka.admin import NewTopic, KafkaAdminClient
 
 RUNTIME_ENV = os.getenv("RUNTIME_ENV", "local")
 BOOTSTRAP_SERVERS = os.getenv("BOOTSTRAP_SERVERS", "localhost:19092")
+logger = logging.getLogger(__name__)
+
+
+class FileFormat(Enum):
+    TEXT = "text"
+    AVRO = "avro"
+    CSV = "csv"
+    JSON = "json"
 
 
 def create_topic(topic_name: str, admin_client: KafkaAdminClient):
@@ -30,25 +45,63 @@ def check_file_size(file_path):
         print(f"File {file_path} not found.")
 
 
-def send_to_kafka(topic_name: str, file_path: str, bootstrap_servers: list[str]):
-
+def send_to_kafka(
+    topic_name: str,
+    file_path: str,
+    bootstrap_servers: list[str],
+    format: FileFormat = FileFormat.TEXT,
+    **kwargs,
+):
+    file_format = FileFormat(format)
     producer = KafkaProducer(bootstrap_servers=bootstrap_servers)
+    fields = kwargs.get("fields") or {"name": "line", "type": "string"}
+    schema = {
+        "type": "record",
+        "name": "text",
+        "fields": [fields],
+    }
+    schema = avro.schema.parse(json.dumps(schema))
+
+    logger.info(f"file format - {file_format}")
 
     with open(file_path, "r") as f:
-        for line in f:
-            producer.send(topic_name, value=line.strip().encode("utf-8"))
-            # delay = random.uniform(0.25, 1.5)
-            # time.sleep(delay)
+        if file_format == FileFormat.AVRO:
+            writer = DatumWriter(schema)
 
-    # Close the producer
+            for line in f:
+                record = {"line": line.strip()}
+                bytes_writer = io.BytesIO()
+                encoder = BinaryEncoder(bytes_writer)
+                writer.write(record, encoder)
+                bytes_data = bytes_writer.getvalue()
+                producer.send(topic_name, value=bytes_data)
+
+        elif file_format == FileFormat.CSV:
+            reader = csv.DictReader(f)
+            for row in reader:
+                producer.send(topic_name, value=json.dumps(row).encode("utf-8"))
+
+        elif file_format == FileFormat.JSON:
+            for line in f:
+                data = json.loads(line)
+                producer.send(topic_name, value=json.dumps(data).encode("utf-8"))
+        else:  # text
+            raise Exception("text")
+            for line in f:
+                producer.send(topic_name, value=line.strip().encode("utf-8"))
+
     producer.close()
 
 
-def main(topic_name: str, file_path: str = None, client_id: str = "local"):
+def main(
+    topic_name: str,
+    file_path: str = None,
+    format: FileFormat = FileFormat.TEXT,
+    client_id: str = "local",
+):
     logging.basicConfig(stream=sys.stdout, level=logging.INFO, format="%(message)s")
 
     bootstrap_servers = BOOTSTRAP_SERVERS.split(",")
-    # Create admin client
     admin_client = KafkaAdminClient(
         bootstrap_servers=bootstrap_servers,
         client_id=client_id,
@@ -59,6 +112,7 @@ def main(topic_name: str, file_path: str = None, client_id: str = "local"):
         send_to_kafka(
             topic_name=topic_name,
             bootstrap_servers=bootstrap_servers,
+            format=format,
             file_path=file_path,
         )
 
@@ -74,8 +128,16 @@ if __name__ == "__main__":
         required=False,
         help="specify file to stream to kafka topic",
     )
+    parser.add_argument(
+        "--format",
+        dest="format",
+        required=False,
+        help="specify file format when streaming to kafka topic",
+    )
 
     argv = sys.argv[1:]
     known_args, _ = parser.parse_known_args(argv)
 
-    main(topic_name=known_args.topic, file_path=known_args.file)
+    main(
+        topic_name=known_args.topic, file_path=known_args.file, format=known_args.format
+    )
