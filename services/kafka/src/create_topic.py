@@ -6,6 +6,7 @@ import io
 import logging
 import os
 import random
+import re
 import sys
 import time
 
@@ -45,6 +46,20 @@ def check_file_size(file_path):
         print(f"File {file_path} not found.")
 
 
+def sanitize_avro(s):
+    """
+    Sanitizes a string to match the pattern (?:^|\.)[A-Za-z_][A-Za-z0-9_]*$
+    """
+    s = re.sub(r"[^\w\.]", "_", s)
+    s = s.strip("_")
+    s = s.lstrip(".")
+    if not s:
+        return "_"
+    if s[0].isdigit():
+        s = "_" + s
+    return s
+
+
 def send_to_kafka(
     topic_name: str,
     file_path: str,
@@ -54,11 +69,14 @@ def send_to_kafka(
 ):
     file_format = FileFormat(format)
     producer = KafkaProducer(bootstrap_servers=bootstrap_servers)
-    fields = kwargs.get("fields") or {"name": "line", "type": "string"}
+    fields = kwargs.get("fields") or [
+        {"name": "line", "type": "int"},
+        {"name": "text", "type": "string"},
+    ]
     schema = {
         "type": "record",
-        "name": "text",
-        "fields": [fields],
+        "name": sanitize_avro(topic_name),
+        "fields": fields,
     }
     schema = avro.schema.parse(json.dumps(schema))
 
@@ -68,8 +86,8 @@ def send_to_kafka(
         if file_format == FileFormat.AVRO:
             writer = DatumWriter(schema)
 
-            for line in f:
-                record = {"line": line.strip()}
+            for line_number, line in enumerate(f, start=1):
+                record = {"line": line_number, "text": line.strip()}
                 bytes_writer = io.BytesIO()
                 encoder = BinaryEncoder(bytes_writer)
                 writer.write(record, encoder)

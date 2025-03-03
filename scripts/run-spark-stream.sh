@@ -4,10 +4,14 @@ export TOPIC='brothers-karamazov'
 #create topic first
 docker exec notebook /usr/bin/python /home/app/kafka/src/create_topic.py --topic=${TOPIC}
 
-# run spark stream job
-## terminate time can be adjusted
+# run spark stream job -file
+## terminate time can be adjusted 
+# docker exec -itd notebook spark-submit --conf spark.cores.max=1 /home/app/src/kafka_stream.py \
+#     --topic=${TOPIC} --terminate=20 --output=/home/app/output --format=avro
+
+#output to iceberg
 docker exec -itd notebook spark-submit --conf spark.cores.max=1 /home/app/src/kafka_stream.py \
-    --topic=${TOPIC} --terminate=20 --output=/home/app/output --format=avro
+    --topic=${TOPIC} --terminate=20 --output=iceberg --format=avro
 
 
 #stream to topic after waiting for stream job to initialize
