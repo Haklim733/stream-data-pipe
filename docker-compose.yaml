@@ -10,23 +10,26 @@ services:
       - rest
       - minio
     volumes:
-      - ./services/notebook/warehouse:/home/iceberg/warehouse
-      - ./services/notebook/notebooks:/home/iceberg/notebooks/
-      - ./services/notebook/data:/home/iceberg/data
-      - ./services/notebook/tmp:/tmp/spark-events # needed using spark image and docker file
-      - ./services/kafka/src:/home/spark/kafka
-      - ./services/flink/src:/home/spark/flink
+      - ./services/notebook/warehouse:/home/app/warehouse
+      - ./services/notebook/notebooks:/home/app/notebooks
+      - ./services/notebook/data:/home/app/data
+      - ./services/notebook/tmp:/tmp # needed using spark image and docker file
+      - ./services/notebook/src:/home/app/src/
+      - ./services/kafka/src:/home/app/kafka/src
+      - ./services/flink/src:/home/app/flink/src
     environment:
       - BOOTSTRAP_SERVERS=kafka-broker:9092
       - AWS_ACCESS_KEY_ID=admin
       - AWS_SECRET_ACCESS_KEY=password
       - AWS_REGION=us-east-1
       - JUPYTER_PASSWORD=password
+      - JUPYTER_PORT=8888
     ports:
       - 8888:8888
       - 8080:8080
       - 10000:10000
       - 10001:10001
+    entrypoint: ""
   rest:
     image: apache/iceberg-rest-fixture
     container_name: iceberg-rest
@@ -109,7 +112,7 @@ services:
       - KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS=0  # No delay for consumer rebalancing.
       - PATH=$PATH:/opt/kafka/bin
     volumes:
-      - ./services/kafka/logs:/var/lib/kafka/data  # Store Kafka logs on your local machine.
+      - ./services/kafka/logs:/var/log/kafka# Store Kafka logs on your local machine.
   flink-jobmanager:
     container_name: flink-jobmanager
     build: ./services/flink

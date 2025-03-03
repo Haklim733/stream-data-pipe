@@ -3,4 +3,5 @@ warehouse
 data/
 notebooks/*
 !notebooks/kafka-flink-sentiment.ipynb
+!notebooks/kafka-spark-stream.ipynb
 tmp

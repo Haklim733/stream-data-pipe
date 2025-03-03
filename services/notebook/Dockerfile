@@ -8,12 +8,12 @@ ENV SHELL=/bin/bash \
     LANG=C.UTF-8 \
     LANGUAGE=C.UTF-8
 
-ENV HOME="/home/spark"
+ENV HOME="/home/app"
 ENV SPARK_HOME="/opt/spark"
 
 USER root
 
-WORKDIR "${HOME}"
+WORKDIR ${HOME}
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
@@ -29,8 +29,6 @@ RUN apt-get update && \
 
 RUN ln -s /usr/bin/python3 /usr/bin/python
 
-WORKDIR ${SPARK_HOME}
-
 ENV SPARK_VERSION=3.5.4
 ENV SPARK_MAJOR_VERSION=3.5
 ENV ICEBERG_VERSION=1.8.0
@@ -38,10 +36,13 @@ ENV ICEBERG_VERSION=1.8.0
 # Download iceberg spark runtime
 RUN curl https://repo1.maven.org/maven2/org/apache/iceberg/iceberg-spark-runtime-${SPARK_MAJOR_VERSION}_2.12/${ICEBERG_VERSION}/iceberg-spark-runtime-${SPARK_MAJOR_VERSION}_2.12-${ICEBERG_VERSION}.jar -Lo ${SPARK_HOME}/jars/iceberg-spark-runtime-${SPARK_MAJOR_VERSION}_2.12-${ICEBERG_VERSION}.jar
 
+# Download dependencies for kafka
 RUN wget https://repo1.maven.org/maven2/org/apache/spark/spark-sql-kafka-0-10_2.12/${SPARK_VERSION}/spark-sql-kafka-0-10_2.12-${SPARK_VERSION}.jar -P ${SPARK_HOME}/jars
-RUN wget https://repo1.maven.org/maven2/org/apache/kafka/kafka-clients/3.9.0/kafka-clients-3.9.0.jar -P ${SPARK_HOME}/jars
+RUN wget https://repo1.maven.org/maven2/org/apache/kafka/kafka-clients/3.4.1/kafka-clients-3.4.1.jar -P ${SPARK_HOME}/jars
+# see https://repo1.maven.org/maven2/org/apache/spark/spark-sql-kafka-0-10_2.12/3.5.4/spark-sql-kafka-0-10_2.12-3.5.4.pom
+RUN wget https://repo1.maven.org/maven2/org/apache/spark/spark-token-provider-kafka-0-10_2.12/${SPARK_VERSION}/spark-token-provider-kafka-0-10_2.12-${SPARK_VERSION}.jar -P ${SPARK_HOME}/jars
+RUN wget https://repo1.maven.org/maven2/org/apache/commons/commons-pool2/2.11.1/commons-pool2-2.11.1.jar -P ${SPARK_HOME}/jars
 
-# Other Dockerfile content
 # Download AWS bundle
 RUN curl -s https://repo1.maven.org/maven2/org/apache/iceberg/iceberg-aws-bundle/${ICEBERG_VERSION}/iceberg-aws-bundle-${ICEBERG_VERSION}.jar -Lo ${SPARK_HOME}/jars/iceberg-aws-bundle-${ICEBERG_VERSION}.jar
 
@@ -62,25 +63,25 @@ RUN curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2
 
 ENV PYTHONPATH=$SPARK_HOME/python:$SPARK_HOME/python/lib/py4j-0.10.9.7-src.zip
 
-RUN mkdir -p /home/iceberg/data /home/iceberg/localwarehouse /home/iceberg/notebooks /home/iceberg/warehouse /home/iceberg/spark-events /home/iceberg
-COPY notebooks/ /home/iceberg/notebooks
-
 # Install Jupyter and other python deps
 COPY requirements.txt .
 RUN pip3 install -r requirements.txt
 RUN jupyter server extension enable --py jupyterlab --sys-prefix
 ENV JUPYTER_PORT=8888
 
+RUN mkdir -p ${HOME}/data ${HOME}/localwarehouse ${HOME}/notebooks ${HOME}/warehouse %{HOME}/spark-events
+COPY notebooks/ ${HOME}/notebooks
 # Add a notebook command
 RUN echo '#! /bin/sh' >> /bin/notebook \
     && echo 'export PYSPARK_DRIVER_PYTHON=jupyter-notebook' >> /bin/notebook \
-    && echo "export PYSPARK_DRIVER_PYTHON_OPTS=\"--notebook-dir=/home/iceberg/notebooks --ip='*' --NotebookApp.token='' --NotebookApp.password='' --port=8888 --no-browser --allow-root\"" >> /bin/notebook \
+    && echo "export PYSPARK_DRIVER_PYTHON_OPTS=\"--notebook-dir=${HOME}/notebooks --ip='*' --NotebookApp.token='' --NotebookApp.password='' --port=8888 --no-browser --allow-root\"" >> /bin/notebook \
     && echo "pyspark" >> /bin/notebook \
     && chmod u+x /bin/notebook
 
 RUN mkdir -p /root/.ipython/profile_default/startup
 COPY ipython/startup/00-prettytables.py /root/.ipython/profile_default/startup
 COPY ipython/startup/README /root/.ipython/profile_default/startup
+COPY ipython/startup/startup.py /root/.ipython/profile_default/startup
 
 RUN chmod u+x /opt/spark/sbin/* && \
     chmod u+x /opt/spark/bin/*
@@ -91,17 +92,12 @@ COPY .pyiceberg.yaml /root/.pyiceberg.yaml
 # from https://github.com/jupyter/docker-stacks/blob/main/images/docker-stacks-foundation/Dockerfile
 COPY ipython_kernel_config.py "/etc/ipython/"
 
-WORKDIR "${HOME}"
-
-COPY entrypoint.sh .
-RUN chmod +x entrypoint.sh
+RUN pwd
+COPY entrypoint.sh ${HOME}/
+RUN chmod +x ${HOME}/entrypoint.sh
 
 # copy flink binaries to submit jobs only
 COPY --from=flink:1.20-scala_2.12 /opt/flink/bin /opt/flink/bin
-
-COPY startup.py /root/.ipython/profile_default/startup
-
-#for spark streaming
 
 ENTRYPOINT ["./entrypoint.sh"]
 CMD ["notebook"]

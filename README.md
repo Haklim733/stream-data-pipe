@@ -18,7 +18,7 @@ https://github.com/jaehyeon-kim/flink-demos
 
 This creates a kafka topic as a source and then runs a flink job that tokenizes and classifies each line of text. The results are piped into a kafka topic.
 
-`./scripts/run-sentiment.sh`
+`./scripts/run-flink-sentiment.sh`
 
 ## apache kafka -> s3 & apache kafka -> apache flink -> s3
 
@@ -30,7 +30,7 @@ work in progress
 
 ## apache kafka -> apache spark -> iceberg
 
-work in progress
+`./scripts/run-spark-stream.sh`
 
 ## logs
 
