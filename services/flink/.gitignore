@@ -53,6 +53,7 @@ gradle-app.setting
 
 .env
 
-
+# flink
 examples
 checkpoints
+log
