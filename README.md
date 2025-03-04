@@ -6,6 +6,7 @@ Repo to learn and test data pipelines for kafka,flink, spark streaming and icebe
 2. apache kafka -> apache flink -> s3
 3. apache kafka -> apache flink -> iceberg / s3
 4. apache kafka -> apache spark -> iceberg / s3
+5. apache kafka -> risingwave
 
 first step is to run `chmod +x setup.sh && ./setup.sh` from the project root.
 
@@ -39,6 +40,14 @@ program saves kafka topic as a datastream to a text file
 `./scripts/run-spark-stream.sh`
 You need to specify --output=>path/to/folder? when running the relevant docker exec command.
 Results can be seen by navigating to `localhost:8888` and opening the `kafka-spark-stream` notebook.
+
+## apache kafka -> risingwave
+
+program produces a kafka topic which is ingested as a materialized view using rising wave.
+`./scripts/run-risingwave.sh`
+
+Results can be seen by `psql -h localhost -p 4566 -d dev -U root` and querying the `kafka_view` table.
+Or, navigate to `localhost:8888` and open the `kafka-risingwave` notebook.
 
 ## logs
 

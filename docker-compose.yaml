@@ -96,6 +96,7 @@ services:
       - AWS_ACCESS_KEY_ID=admin
       - AWS_SECRET_ACCESS_KEY=password
       - AWS_REGION=us-east-1
+      - PATH=$PATH:/opt/kafka/bin
       - KAFKA_NODE_ID=1
       - KAFKA_PROCESS_ROLES=broker,controller
       - KAFKA_LISTENERS=PLAINTEXT://:9092,CONTROLLER://:9093,EXTERNAL://:19092
@@ -160,6 +161,21 @@ services:
         heartbeat.interval: 1000
         heartbeat.timeout: 5000
       - BOOTSTRAP_SERVERS=kafka-broker:9092
+      - RUNTIME_ENV=docker 
+      - AWS_ACCESS_KEY_ID=admin
+      - AWS_SECRET_ACCESS_KEY=password
+      - AWS_REGION=us-east-1
+  risingwave:
+    image: risingwavelabs/risingwave
+    container_name: risingwave
+    networks:
+      datapipe_net:
+    ports:
+      - 4566:4566
+      - 5691:5691
+    command: single_node
+    scale: 1
+    environment:
       - RUNTIME_ENV=docker 
       - AWS_ACCESS_KEY_ID=admin
       - AWS_SECRET_ACCESS_KEY=password

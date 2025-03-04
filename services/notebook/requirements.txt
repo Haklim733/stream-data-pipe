@@ -248,6 +248,8 @@ protobuf==4.23.4
     #   grpcio-status
 psutil==7.0.0
     # via ipykernel
+psycopg2-binary==2.9.10
+    # via spark (pyproject.toml)
 ptyprocess==0.7.0
     # via
     #   pexpect

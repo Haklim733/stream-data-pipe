@@ -1,5 +1,6 @@
 import argparse
 import csv
+from datetime import datetime
 from enum import Enum
 import json
 import io
@@ -50,7 +51,7 @@ def sanitize_avro(s):
     """
     Sanitizes a string to match the pattern (?:^|\.)[A-Za-z_][A-Za-z0-9_]*$
     """
-    s = re.sub(r"[^\w\.]", "_", s)
+    s = re.sub(r"[^\w.]", "_", s)
     s = s.strip("_")
     s = s.lstrip(".")
     if not s:
@@ -64,7 +65,7 @@ def send_to_kafka(
     topic_name: str,
     file_path: str,
     bootstrap_servers: list[str],
-    format: FileFormat = FileFormat.TEXT,
+    format: str,
     **kwargs,
 ):
     file_format = FileFormat(format)
@@ -100,11 +101,18 @@ def send_to_kafka(
                 producer.send(topic_name, value=json.dumps(row).encode("utf-8"))
 
         elif file_format == FileFormat.JSON:
-            for line in f:
-                data = json.loads(line)
-                producer.send(topic_name, value=json.dumps(data).encode("utf-8"))
+            if file_path.endswith(".json"):
+                data = json.load(f)
+                for item in data:
+                    producer.send(topic_name, value=json.dumps(item).encode("utf-8"))
+            else:
+                for line_number, line in enumerate(f, start=1):
+                    record = {"line": line_number, "text": line.strip()}
+                    producer.send(
+                        topic_name,
+                        value=json.dumps(record).encode("utf-8"),
+                    )
         else:  # text
-            raise Exception("text")
             for line in f:
                 producer.send(topic_name, value=line.strip().encode("utf-8"))
 
@@ -114,7 +122,7 @@ def send_to_kafka(
 def main(
     topic_name: str,
     file_path: str = None,
-    format: FileFormat = FileFormat.TEXT,
+    format: str = None,
     client_id: str = "local",
 ):
     logging.basicConfig(stream=sys.stdout, level=logging.INFO, format="%(message)s")
@@ -124,6 +132,10 @@ def main(
         bootstrap_servers=bootstrap_servers,
         client_id=client_id,
     )
+
+    if not format:
+        format = "text"
+
     create_topic(topic_name=topic_name, admin_client=admin_client)
     if file_path:
         check_file_size(file_path)
@@ -151,6 +163,12 @@ if __name__ == "__main__":
         dest="format",
         required=False,
         help="specify file format when streaming to kafka topic",
+    )
+    parser.add_argument(
+        "--input",
+        dest="input",
+        required=False,
+        help="input for kafka topic",
     )
 
     argv = sys.argv[1:]

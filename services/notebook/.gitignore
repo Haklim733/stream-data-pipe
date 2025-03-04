@@ -4,5 +4,6 @@ data/
 notebooks/*
 !notebooks/kafka-flink-sentiment.ipynb
 !notebooks/kafka-spark-stream.ipynb
+!notebooks/kafka-risingwave.ipynb
 tmp
 output
