@@ -1,9 +1,5 @@
-Service to Render Emotion Sentiment Analysis using fast api or faststreams
+Service to Render Emotion Sentiment Analysis using faststream library
 
-for fastapi:
-
-enter command for ml service in the docker-compose.yaml to be `["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000"]`
-
-for faststreams:
+for faststream:
 
 enter command for ml service in the docker-compose.yaml to be `[faststream", "run", "stream:app"]`
