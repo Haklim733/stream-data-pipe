@@ -6,7 +6,6 @@ import json
 import io
 import logging
 import os
-import random
 import re
 import sys
 import time
@@ -20,6 +19,7 @@ from kafka.admin import NewTopic, KafkaAdminClient
 RUNTIME_ENV = os.getenv("RUNTIME_ENV", "local")
 BOOTSTRAP_SERVERS = os.getenv("BOOTSTRAP_SERVERS", "localhost:19092")
 logger = logging.getLogger(__name__)
+logging.basicConfig(stream=sys.stdout, level=logging.INFO, format="%(message)s")
 
 
 class FileFormat(Enum):
@@ -67,9 +67,15 @@ def send_to_kafka(
     bootstrap_servers: list[str],
     format: str,
     **kwargs,
-):
+) -> dict[str, int]:
     file_format = FileFormat(format)
-    producer = KafkaProducer(bootstrap_servers=bootstrap_servers)
+    producer = KafkaProducer(
+        bootstrap_servers=bootstrap_servers,
+        acks="all",
+        retries=3,
+        retry_backoff_ms=100,
+        request_timeout_ms=30000,  # 30 sec
+    )
     fields = kwargs.get("fields") or [
         {"name": "line", "type": "int"},
         {"name": "text", "type": "string"},
@@ -82,6 +88,8 @@ def send_to_kafka(
     schema = avro.schema.parse(json.dumps(schema))
 
     logger.info(f"file format - {file_format}")
+    messages = 0
+    file_size = os.path.getsize(file_path)
 
     with open(file_path, "r") as f:
         if file_format == FileFormat.AVRO:
@@ -94,17 +102,20 @@ def send_to_kafka(
                 writer.write(record, encoder)
                 bytes_data = bytes_writer.getvalue()
                 producer.send(topic_name, value=bytes_data)
+                messages += 1
 
         elif file_format == FileFormat.CSV:
             reader = csv.DictReader(f)
             for row in reader:
                 producer.send(topic_name, value=json.dumps(row).encode("utf-8"))
+                messages += 1
 
         elif file_format == FileFormat.JSON:
             if file_path.endswith(".json"):
                 data = json.load(f)
                 for item in data:
                     producer.send(topic_name, value=json.dumps(item).encode("utf-8"))
+                    messages += 1
             else:
                 for line_number, line in enumerate(f, start=1):
                     record = {"line": line_number, "text": line.strip()}
@@ -112,11 +123,14 @@ def send_to_kafka(
                         topic_name,
                         value=json.dumps(record).encode("utf-8"),
                     )
+                    messages += 1
         else:  # text
             for line in f:
                 producer.send(topic_name, value=line.strip().encode("utf-8"))
 
+                messages += 1
     producer.close()
+    return {"messages": messages, "file_size": file_size}
 
 
 def main(
@@ -125,7 +139,7 @@ def main(
     format: str = None,
     client_id: str = "local",
 ):
-    logging.basicConfig(stream=sys.stdout, level=logging.INFO, format="%(message)s")
+    start_time = time.time()
 
     bootstrap_servers = BOOTSTRAP_SERVERS.split(",")
     admin_client = KafkaAdminClient(
@@ -139,12 +153,17 @@ def main(
     create_topic(topic_name=topic_name, admin_client=admin_client)
     if file_path:
         check_file_size(file_path)
-        send_to_kafka(
+        summary = send_to_kafka(
             topic_name=topic_name,
             bootstrap_servers=bootstrap_servers,
             format=format,
             file_path=file_path,
         )
+        logger.info(
+            f"Sent {summary['messages']} messages to Kafka for file in {summary['file_size']:.2f} bytes"
+        )
+    end_time = time.time()
+    logger.info(f"execution time: {end_time - start_time:.2f} seconds")
 
 
 if __name__ == "__main__":

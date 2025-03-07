@@ -1,0 +1,14 @@
+[project]
+name = "transformer"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "fastapi>=0.115.11",
+    "faststream[cli,confluent,kafka]>=0.5.35",
+    "huggingface>=0.0.1",
+    "protobuf>=6.30.0",
+    "transformers[torch]>=4.49.0",
+    "uvicorn>=0.34.0",
+]

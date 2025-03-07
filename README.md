@@ -1,12 +1,13 @@
 # Overview
 
-Repo to learn and test data pipelines for kafka,flink, spark streaming and iceberg:
+Repo to learn and test data pipelines for kafka,flink, spark streaming, ml inference and iceberg:
 
 1. apache kafka -> apache flink -> kafka
 2. apache kafka -> apache flink -> s3
 3. apache kafka -> apache flink -> iceberg / s3
 4. apache kafka -> apache spark -> iceberg / s3
 5. apache kafka -> risingwave
+6. apache kafka -> emotion sentiment analysis (python) -> kafka
 
 first step is to run `chmod +x setup.sh && ./setup.sh` from the project root.
 
@@ -48,6 +49,12 @@ program produces a kafka topic which is ingested as a materialized view using ri
 
 Results can be seen by `psql -h localhost -p 4566 -d dev -U root` and querying the `kafka_view` table.
 Or, navigate to `localhost:8888` and open the `kafka-risingwave` notebook.
+
+## apache kafka -> ml inference -> kafka
+
+program produces a kafka topic which is ingested by the 'ml' service using python faststream and huggingface to produce an emotion sentiment analysis that is sent back to kafka topic. The topic names can be set in the docker-compose.yaml for notebook and ml services.
+
+navigate to `localhost:8888` and open the `kafka-ml-inference` notebook.
 
 ## logs
 

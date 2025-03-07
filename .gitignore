@@ -28,5 +28,5 @@ build/
 .settings/
 **/tmp
 
-# python
+#python
 **/__pycache__
