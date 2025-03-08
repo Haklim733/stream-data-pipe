@@ -54,10 +54,8 @@ class KafkaSource(Source):
             )
 
     def create(self):
-        with self.db_connect.cursor() as cursor:
-            cursor.execute(
-                sql.SQL(
-                    """
+        stmt = sql.SQL(
+            """
                     CREATE SOURCE IF NOT EXISTS {} (
                         {}
                         )
@@ -67,16 +65,22 @@ class KafkaSource(Source):
                         connector = 'kafka',
                         topic='{}',
                         properties.bootstrap.server='{}',
-                        scan.startup.mode='earliest'
+                        scan.startup.mode='earliest',
+                        properties.client.id='risingwave',
+                        properties.fetch.queue.backoff.ms=1000,
+                        properties.statistics.interval.ms=1000
                     ) FORMAT PLAIN ENCODE JSON;
                     """
-                ).format(
-                    sql.Identifier(self.table_name),
-                    sql.Identifier(self.config.schema),
-                    sql.Identifier(self.config.topic),
-                    sql.Identifier(self.config.bootstrap_servers),
-                )
-            )
+        ).format(
+            sql.Identifier(self.table_name),
+            sql.SQL(self.config.schema),
+            sql.SQL(self.config.topic),
+            sql.SQL(self.config.bootstrap_servers),
+        )
+
+        with self.db_connect.cursor() as cursor:
+            print(stmt.as_string(cursor))
+            cursor.execute(stmt)
 
 
 class SourceFactory:

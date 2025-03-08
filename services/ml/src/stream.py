@@ -108,7 +108,7 @@ def main(input_text: str, model: MlModel) -> str:
 @broker.subscriber(
     CONSUMER_TOPIC,
     auto_offset_reset="earliest",
-    max_workers=3,
+    max_workers=2,
     isolation_level="read_committed",
 )
 @broker.publisher(
@@ -116,6 +116,8 @@ def main(input_text: str, model: MlModel) -> str:
     title="emotions",
     description="sentiment analysis on line of text",
     schema=EmotionResponse,
+    include_in_schema=False,
+    batch=False,
 )
 def predict(line: int, text: str, model=Context()) -> dict[str, int | str]:
     emotion = main(text, model)
