@@ -44,15 +44,14 @@ Results can be seen by navigating to `localhost:8888` and opening the `kafka-spa
 
 ## apache kafka -> risingwave
 
-program produces a kafka topic which is ingested as a materialized view using rising wave.
-`./scripts/run-risingwave.sh`
+Messages are published a kafka topic which is then ingested as a source table and materialized view using rising wave.
+Navigate to `localhost:8888` and open the `kafka-risingwave` notebook.
 
-Results can be seen by `psql -h localhost -p 4566 -d dev -U root` and querying the `kafka_view` table.
-Or, navigate to `localhost:8888` and open the `kafka-risingwave` notebook.
+Results can be also seen via `psql -h localhost -p 4566 -d dev -U root` and querying the `<topic>_view` table.
 
 ## apache kafka -> ml inference -> kafka
 
-program produces a kafka topic which is ingested by the 'ml' service using python faststream and huggingface to produce an emotion sentiment analysis that is sent back to kafka topic. The topic names can be set in the docker-compose.yaml for notebook and ml services.
+Messages are published to a kafka topic which is ingested by the 'ml' service using python faststream and huggingface to produce an emotion sentiment analysis that is sent back as a kafka topic. The topic names can be set in the docker-compose.yaml for notebook and ml services.
 
 navigate to `localhost:8888` and open the `kafka-ml-inference` notebook.
 

@@ -17,4 +17,6 @@ dependencies = [
     "pyiceberg[duckdb,pandas,pyarrow]",
     "pyspark[sql,connect,pandas_on_spark]==3.5.4",
     "scipy>=1.15.2",
+    "sqlalchemy>=2.0.38",
+    "sqlalchemy-risingwave>=1.1.1",
 ]

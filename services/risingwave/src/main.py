@@ -1,75 +1,72 @@
 import argparse
 import os
 import sys
-import psycopg2
 
-conn = psycopg2.connect(host="localhost", port=4566, user="root", dbname="dev")
-conn.autocommit = True
+from psycopg2 import sql
+from src.db import DatabaseConnection
+from src.sinks import IcebergSink
+from src.sources import Source, SourceFactory
+
+
 RUNTIME_ENV = os.getenv("RUNTIME_ENV", "local")
-BOOTSTRAP_SERVERS = "kafka-broker:9092"
 
 
-def initialize():
-    with conn.cursor() as cur:
+def initialize(source: Source):
+    with source.db_connect.cursor() as cur:
         cur.execute("DROP SOURCE IF EXISTS iceberg CASCADE;")
         cur.execute("DROP SOURCE IF EXISTS kafka CASCADE;")
         cur.execute("DROP MATERIALIZED VIEW IF EXISTS kafka_view CASCADE;")
 
 
-def main(topic: str, source: str = None):
-    initialize()
-    if source == "iceberg":
-        with conn.cursor() as cur:
-            cur.execute(
-                f"""
-                CREATE SOURCE IF NOT EXISTS iceberg
-                WITH (
-                    connector = 'iceberg',
-                    warehouse.path = 's3://warehouse/wh',
-                    s3.endpoint = 'http://minio:9000',
-                    s3.region = 'us-east-1',
-                    s3.access.key = 'admin',
-                    s3.secret.key = 'password',
-                    s3.path.style.access = 'true',
-                    catalog.type = 'rest',
-                    catalog.uri = 'http://iceberg-rest:8181/api/catalog',
-                    database.name = 'spark',
-                    table.name = 'text',
-                    catalog.credential='admin:password',
-                    catalog.scope='PRINCIPAL_ROLE:ALL'
-                ) """
-            )
-    else:
-        with conn.cursor() as cur:
-            cur.execute(
-                f"""
-                CREATE SOURCE IF NOT EXISTS kafka (
-                    line INTEGER,
-                    text VARCHAR 
-                    )
-                INCLUDE header AS kafka_header,
-                INCLUDE timestamp AS kafka_timestamp
-                WITH (
-                    connector = 'kafka',
-                    topic='{topic}',
-                    properties.bootstrap.server='{BOOTSTRAP_SERVERS}',
-                    scan.startup.mode='earliest'
-                ) FORMAT PLAIN ENCODE JSON;
-                """
-            )
+def main(
+    topic: str,
+    bootstrap_servers: str,
+    schema: str,
+    source: str,
+    write_to: str = None,
+):
+    factory = SourceFactory()
+    kwargs = {
+        "bootstrap_servers": bootstrap_servers,
+        "topic": topic,
+        "schema": schema,
+    }
+    source = factory.get_source(source, **kwargs)
+    source.drop()
+    source.create()
 
-            cur.execute(
-                """CREATE MATERIALIZED VIEW IF NOT EXISTS kafka_view
-            AS SELECT * FROM kafka;"""
-            )
-
-    conn.close()
+    with source.db_connect.cursor() as cur:
+        cur.execute(
+            sql.SQL(
+                """CREATE MATERIALIZED VIEW IF NOT EXISTS {}
+        AS SELECT * FROM {};"""
+            ).format(sql.Identifier(f"{topic}_view"), sql.Identifier(topic))
+        )
+    source.db_connect.close()
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--topic", dest="topic", required=False, help="specify kafka topic to consume"
+        "--topic", dest="topic", required=True, help="specify kafka topic to consume"
+    )
+    parser.add_argument(
+        "--bootstrap-servers",
+        dest="bootstrap_servers",
+        required=True,
+        help="specify kafka broker",
+    )
+    parser.add_argument(
+        "--schema",
+        dest="schema",
+        required=True,
+        help="schema for view. Must be risingwave types",
+    )
+    parser.add_argument(
+        "--source",
+        dest="source",
+        required=True,
+        help="source of data",
     )
 
     argv = sys.argv[1:]
@@ -77,4 +74,7 @@ if __name__ == "__main__":
 
     main(
         topic=known_args.topic,
+        bootstrap_servers=known_args.bootstrap_servers,
+        schema=known_args.schema,
+        source=known_args.source,
     )

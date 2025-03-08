@@ -18,6 +18,7 @@ services:
       - ./services/notebook/src:/home/app/src/
       - ./services/kafka/src:/home/app/kafka/src
       - ./services/flink/src:/home/app/flink/src
+      - ./services/risingwave/src:/home/app/risingwave/src
     environment:
       - BOOTSTRAP_SERVERS=kafka-broker:9092
       - AWS_ACCESS_KEY_ID=admin
@@ -25,6 +26,7 @@ services:
       - AWS_REGION=us-east-1
       - JUPYTER_PASSWORD=password
       - JUPYTER_PORT=8888
+      - DB_HOST=risingwave
     ports:
       - 8888:8888
       - 8080:8080
