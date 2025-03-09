@@ -217,6 +217,23 @@ class IcebergSink(Sink):
                     database.name = 'default', 
                     table.name = 'book_emotions',
                 ); 
+            """
+            stmt = """
+                CREATE SOURCE IF NOT EXISTS iceberg
+                WITH (
+                    connector = 'iceberg', 
+                    warehouse.path = 's3://warehouse/wh', 
+                    s3.endpoint = 'http://minio:9000', 
+                    s3.region = 'us-east-1', 
+                    s3.access.key = 'user', 
+                    s3.secret.key = 'User@12345', 
+                    s3.path.style.access = true, 
+                    catalog.type = 'rest', 
+                    catalog.uri = 'http://iceberg-rest:8181', 
+                    catalog.name = 'default',
+                    database.name = 'spark', 
+                    table.name = 'text'
+                ); 
 
             """
 
@@ -241,22 +258,22 @@ class SinkFactory:
 
 
 if __name__ == "__main__":
-    s3_sink = S3Sink(
-        DatabaseConnection(),
-        source_name="book_emotions_view",
-        sink_name="rw_s3_sink",
-        s3_credentials_access="user",
-        s3_credentials_secret="User@12345",
-    )
-    s3_sink.drop()
-    s3_sink.create()
-    # print(
-    #     IcebergSink(
-    #         DatabaseConnection(),
-    #         source_name="book_emotions_view",
-    #         table_name="book_emotions",
-    #         database_name="default",
-    #         catalog_name="default",
-    #         catalog_type="rest",
-    #     ).create()
+    # s3_sink = S3Sink(
+    #     DatabaseConnection(),
+    #     source_name="book_emotions_view",
+    #     sink_name="rw_s3_sink",
+    #     s3_credentials_access="user",
+    #     s3_credentials_secret="User@12345",
     # )
+    # s3_sink.drop()
+    # s3_sink.create()
+    print(
+        IcebergSink(
+            DatabaseConnection(),
+            source_name="book_emotions_view",
+            table_name="book_emotions",
+            database_name="default",
+            catalog_name="default",
+            catalog_type="rest",
+        ).create()
+    )
