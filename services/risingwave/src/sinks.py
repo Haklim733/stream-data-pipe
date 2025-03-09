@@ -1,8 +1,4 @@
 from abc import ABC, abstractmethod
-from dataclasses import dataclass, field
-import json
-import re
-from psycopg2.extensions import adapt, register_adapter, AsIs
 
 from psycopg2 import sql
 from src.db import DatabaseConnection
@@ -108,6 +104,14 @@ class S3SinkSettings(SinkSettings):
         super().__init__(**kwargs)
 
 
+class EncodeSettings(SinkSettings):
+
+    def __init__(self, **kwargs):
+        self.format: str = "PLAIN"
+        self.encode: str = "JSON"
+        super().__init__(**kwargs)
+
+
 class Sink(ABC):
     def __init__(self, database_connection):
         self.database_connection = database_connection
@@ -121,7 +125,8 @@ class S3Sink(Sink):
 
     def __init__(self, database_connection: DatabaseConnection, **kwargs):
         self.db_connect = database_connection
-        self.settings = S3SinkSettings(**kwargs)
+        self.s3_settings = S3SinkSettings(**kwargs)
+        self.encode_settings = EncodeSettings(**kwargs)
         self.source_name: str = validate_params(kwargs["source_name"])
         self.sink_name: str = validate_params(kwargs["sink_name"])
         self.replace: bool = False
@@ -145,16 +150,21 @@ class S3Sink(Sink):
         return ", ".join(clauses)
 
     def create(self):
-        test = sql.SQL(", ").join(self.settings.sql())
         stmt = sql.SQL(
             """
             CREATE SINK IF NOT EXISTS {}
             FROM {}
             WITH (
                 {}
-            ) FORMAT PLAIN ENCODE JSON
+            ) FORMAT {} ENCODE {} 
             """
-        ).format(sql.Identifier(self.sink_name), sql.Identifier(self.source_name), test)
+        ).format(
+            sql.Identifier(self.sink_name),
+            sql.Identifier(self.source_name),
+            sql.SQL(", ").join(self.s3_settings.sql()),
+            sql.Identifier(self.encode_settings.format),
+            sql.Identifier(self.encode_settings.encode),
+        )
         self.db_connect.execute(stmt)
 
 
@@ -245,7 +255,7 @@ if __name__ == "__main__":
     #         DatabaseConnection(),
     #         source_name="book_emotions_view",
     #         table_name="book_emotions",
-    #         database_name="risingwave",
+    #         database_name="default",
     #         catalog_name="default",
     #         catalog_type="rest",
     #     ).create()
