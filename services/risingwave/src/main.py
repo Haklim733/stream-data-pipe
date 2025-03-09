@@ -35,13 +35,12 @@ def main(
     source.drop()
     source.create()
 
-    with source.db_connect.cursor() as cur:
-        cur.execute(
-            sql.SQL(
-                """CREATE MATERIALIZED VIEW IF NOT EXISTS {}
+    source.db_connect.execute(
+        sql.SQL(
+            """CREATE MATERIALIZED VIEW IF NOT EXISTS {}
         AS SELECT * FROM {};"""
-            ).format(sql.Identifier(f"{topic}_view"), sql.Identifier(topic))
-        )
+        ).format(sql.Identifier(f"{topic}_view"), sql.Identifier(topic))
+    )
     source.db_connect.close()
 
 

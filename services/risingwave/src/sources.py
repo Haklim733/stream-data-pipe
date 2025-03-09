@@ -49,8 +49,10 @@ class KafkaSource(Source):
 
     def drop(self):
         with self.db_connect.cursor() as cur:
-            sql.SQL("""DROP SOURCE IF EXISTS {} CASCADE;""").format(
-                sql.Identifier(self.config.topic)
+            cur.execute(
+                sql.SQL("""DROP SOURCE IF EXISTS {} CASCADE;""").format(
+                    sql.Identifier(self.config.topic)
+                )
             )
 
     def create(self):

@@ -19,5 +19,10 @@ class DatabaseConnection:
     def cursor(self):
         return self.conn.cursor()
 
+    def execute(self, stmt: psycopg2.sql.SQL):
+        with self.conn.cursor() as cur:
+            print(stmt.as_string(cur))
+            cur.execute(stmt)
+
     def close(self):
         return self.conn.close()

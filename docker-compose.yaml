@@ -80,8 +80,7 @@ services:
       /usr/bin/mc mb minio/warehouse;
       /usr/bin/mc policy set public minio/warehouse;
       set +o history;
-      /usr/bin/mc admin user add minio user user12345;
-      echo -e "user\nuser12345" | /usr/bin/mc admin user add minio;
+      /usr/bin/mc admin user add minio user User@12345;
       /usr/bin/mc admin policy attach minio readwrite --user user;
       tail -f /dev/null
       "
