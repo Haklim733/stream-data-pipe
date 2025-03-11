@@ -1,6 +1,6 @@
 #!/bin/bash
 mkdir -p ./services/notebook/data
-curl -o ./data/the_brothers_karamazov.txt https://www.gutenberg.org/files/8576/8576-0.txt 
+curl -o ./services/notebook/data/the_brothers_karamazov.txt https://www.gutenberg.org/files/8576/8576-0.txt 
 # curl https://data.cityofnewyork.us/resource/tg4x-b46p.json > data/nyc_film_permits.json \
 #     && curl https://d37ci6vzurychx.cloudfront.net/trip-data/yellow_tripdata_2022-04.parquet -o data/yellow_tripdata_2022-04.parquet \
 #     && curl https://d37ci6vzurychx.cloudfront.net/trip-data/yellow_tripdata_2022-03.parquet -o data/yellow_tripdata_2022-03.parquet \
