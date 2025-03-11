@@ -1,0 +1,30 @@
+services:
+  notebook:
+    extends: 
+      file: docker-compose-base.yaml
+      service: notebook 
+    networks:
+      datapipe_net:
+  kafka-broker:
+    extends: 
+      file: docker-compose-base.yaml
+      service: kafka-broker 
+    networks:
+      datapipe_net:
+  risingwave:
+    image: risingwavelabs/risingwave
+    container_name: risingwave
+    networks:
+      datapipe_net:
+    ports:
+      - 4566:4566
+      - 5691:5691
+    command: single_node
+    scale: 1
+    environment:
+      - RUNTIME_ENV=docker 
+      - AWS_ACCESS_KEY_ID=admin
+      - AWS_SECRET_ACCESS_KEY=password
+      - AWS_REGION=us-east-1
+networks:
+  datapipe_net:

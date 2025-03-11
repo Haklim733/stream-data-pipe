@@ -1,0 +1,65 @@
+services:
+  notebook:
+    extends: 
+      file: docker-compose-base.yaml
+      service: notebook 
+    networks:
+      flink_net:
+  kafka-broker:
+    extends: 
+      file: docker-compose-base.yaml
+      service: kafka-broker 
+    networks:
+      flink_net:
+  flink-jobmanager:
+    container_name: flink-jobmanager
+    build: ./services/flink
+    depends_on:
+      - minio
+    ports:
+      - "8081:8081"
+    command: jobmanager
+    networks:
+      flink_net:
+    environment:
+      - |
+        FLINK_PROPERTIES=
+        jobmanager.rpc.address: flink-jobmanager
+        state.backend: filesystem
+        state.checkpoints.dir: file:///opt/flink/checkpoints
+        state.savepoints.dir: file:///opt/flink/savepoints
+        heartbeat.interval: 1000
+        heartbeat.timeout: 5000
+      - BOOTSTRAP_SERVERS=kafka-broker:9092
+      - RUNTIME_ENV=docker 
+      - AWS_ACCESS_KEY_ID=admin
+      - AWS_SECRET_ACCESS_KEY=password
+      - AWS_REGION=us-east-1
+    volumes:
+      - ./services/flink/src:/opt/flink/app
+      - ./services/flink/log/jobmanager:/opt/flink/log
+      - ./services/flink/checkpoints/jobmanager:/opt/flink/checkpoints
+      - ./services/flink/checkpoints/savepoints:/opt/flink/savepoints
+  flink-taskmanager:
+    build: ./services/flink
+    container_name: flink-taskmanager
+    depends_on:
+      - flink-jobmanager
+    command: taskmanager
+    networks:
+      flink_net:
+    scale: 1
+    environment:
+      - |
+        FLINK_PROPERTIES=
+        jobmanager.rpc.address: flink-jobmanager
+        state.backend: filesystem
+        heartbeat.interval: 1000
+        heartbeat.timeout: 5000
+      - BOOTSTRAP_SERVERS=kafka-broker:9092
+      - RUNTIME_ENV=docker 
+      - AWS_ACCESS_KEY_ID=admin
+      - AWS_SECRET_ACCESS_KEY=password
+      - AWS_REGION=us-east-1
+networks:
+  flink_net:

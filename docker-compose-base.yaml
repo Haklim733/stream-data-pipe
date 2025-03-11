@@ -1,0 +1,69 @@
+services:
+  notebook:
+    container_name: notebook
+    build:
+      context: services/notebook
+      dockerfile: Dockerfile
+    networks:
+      datapipe_net:
+    volumes:
+      - ./services/notebook/warehouse:/home/app/warehouse
+      - ./services/notebook/notebooks:/home/app/notebooks
+      - ./services/notebook/data:/home/app/data
+      - ./services/notebook/tmp:/tmp # needed using spark image and docker file
+      - ./services/notebook/output:/home/app/output
+      - ./services/notebook/src:/home/app/src/
+      - ./services/kafka/src:/home/app/kafka/src
+      - ./services/flink/src:/home/app/flink/src
+      - ./services/risingwave/src:/home/app/risingwave/src
+    environment:
+      - BOOTSTRAP_SERVERS=kafka-broker:9092
+      - AWS_ACCESS_KEY_ID=admin
+      - AWS_SECRET_ACCESS_KEY=password
+      - AWS_REGION=us-east-1
+      - JUPYTER_PASSWORD=password
+      - JUPYTER_PORT=8888
+      - DB_HOST=risingwave
+    ports:
+      - 8888:8888
+      - 8080:8080
+      - 10000:10000
+      - 10001:10001
+    entrypoint: ""
+  kafka-broker:
+    image: apache/kafka:latest
+    container_name: kafka-broker
+    ports:
+      - 9092:9092
+      - 9093:9093
+      - 19092:19092
+    networks:
+      datapipe_net:
+    environment:
+      - AWS_ACCESS_KEY_ID=admin
+      - AWS_SECRET_ACCESS_KEY=password
+      - AWS_REGION=us-east-1
+      - PATH=$PATH:/opt/kafka/bin
+      - KAFKA_NODE_ID=1
+      - KAFKA_PROCESS_ROLES=broker,controller
+      - KAFKA_LISTENERS=PLAINTEXT://:9092,CONTROLLER://:9093,EXTERNAL://:19092
+      - KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://kafka-broker:9092,EXTERNAL://localhost:19092
+      - KAFKA_CONTROLLER_LISTENER_NAMES=CONTROLLER
+      - KAFKA_LISTENER_SECURITY_PROTOCOL_MAP=CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,EXTERNAL:PLAINTEXT
+      - KAFKA_CONTROLLER_QUORUM_VOTERS=1@localhost:9093
+      - KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR=1
+      - KAFKA_TRANSACTION_STATE_LOG_MIN_ISR=1
+      - KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS=0
+      - KAFKA_NUM_PARTITIONS=3
+      - KAFKA_AUTO_CREATE_TOPICS_ENABLE=false # Kafka will automatically create topics if needed.
+      - KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR=1  # Since we’re running one broker, one replica is enough.
+      - KAFKA_LOG_RETENTION_HOURS=24  # Keep logs for 1 day
+      - KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS=0  # No delay for consumer rebalancing.
+      - KAFKA_REBALANCE_TIMEOUT_MS=120000  # 2 minutes
+      - KAFKA_SESSION_TIMEOUT_MS=20000  # 10 seconds
+      
+      - PATH=$PATH:/opt/kafka/bin
+    volumes:
+      - ./services/kafka/logs:/var/log/kafka# Store Kafka logs on your local machine.
+networks:
+  datapipe_net:

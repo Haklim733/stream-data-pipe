@@ -16,6 +16,8 @@ https://github.com/jaehyeon-kim/flink-demos
 
 ## apache kafka -> apache flink -> kafka
 
+Run `docker compose -f docker-compose-flink.yaml up -d`
+
 ### Sentiment Analysis
 
 This creates a kafka topic as a source and then runs a flink job that tokenizes and classifies each line of text. The results are piped into a kafka topic.
@@ -29,6 +31,8 @@ Results can be seen by navigating to `localhost:8888` and opening the `kafka-fli
 work in progress
 
 ## apache kafka -> apache spark -> iceberg
+
+Run `docker compose -f docker-compose-spark.yaml up -d`
 
 program saves kafka topic using spark structured streaming to an iceberg table
 `./scripts/run-spark-stream.sh`
@@ -44,12 +48,16 @@ Results can be seen by navigating to `localhost:8888` and opening the `kafka-spa
 
 ## apache kafka -> risingwave
 
+Run `docker compose -f docker-compose-rw.yaml up -d`
+
 Messages are published a kafka topic which is then ingested as a source table and materialized view using rising wave.
 Navigate to `localhost:8888` and open the `kafka-risingwave` notebook.
 
 Results can be also seen via `psql -h localhost -p 4566 -d dev -U root` and querying the `<topic>_view` table.
 
 ## apache kafka -> ml inference -> kafka
+
+Run `docker compose -f docker-compose-ml.yaml up -d`
 
 Messages are published to a kafka topic which is ingested by the 'ml' service using python faststream and huggingface to produce an emotion sentiment analysis that is sent back as a kafka topic. The topic names can be set in the docker-compose.yaml for notebook and ml services.
 

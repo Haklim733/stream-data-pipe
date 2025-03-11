@@ -35,14 +35,6 @@ def main(
     source.drop()
     source.create()
 
-    source.db_connect.execute(
-        sql.SQL(
-            """CREATE MATERIALIZED VIEW IF NOT EXISTS {}
-        AS SELECT * FROM {};"""
-        ).format(sql.Identifier(f"{topic}_view"), sql.Identifier(topic))
-    )
-    source.db_connect.close()
-
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
