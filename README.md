@@ -2,6 +2,8 @@
 
 Repo to learn and test data pipelines for kafka,flink, spark streaming, ml inference and iceberg:
 
+![](./assets/streawm-data-pipeline.svg)
+
 1. apache kafka -> apache flink -> kafka
 2. apache kafka -> apache flink -> s3
 3. apache kafka -> apache flink -> iceberg / s3
