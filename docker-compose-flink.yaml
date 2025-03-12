@@ -4,23 +4,21 @@ services:
       file: docker-compose-base.yaml
       service: notebook 
     networks:
-      flink_net:
+      datapipe_net:
   kafka-broker:
     extends: 
       file: docker-compose-base.yaml
       service: kafka-broker 
     networks:
-      flink_net:
+      datapipe_net:
   flink-jobmanager:
     container_name: flink-jobmanager
-    build: ./services/flink
-    depends_on:
-      - minio
+    build: ./services/flink 
     ports:
       - "8081:8081"
     command: jobmanager
     networks:
-      flink_net:
+      datapipe_net:
     environment:
       - |
         FLINK_PROPERTIES=
@@ -47,7 +45,7 @@ services:
       - flink-jobmanager
     command: taskmanager
     networks:
-      flink_net:
+      datapipe_net:
     scale: 1
     environment:
       - |
@@ -62,4 +60,4 @@ services:
       - AWS_SECRET_ACCESS_KEY=password
       - AWS_REGION=us-east-1
 networks:
-  flink_net:
+  datapipe_net:
