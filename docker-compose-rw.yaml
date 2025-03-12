@@ -1,16 +1,33 @@
 services:
   notebook:
-    extends: 
+    extends:
       file: docker-compose-base.yaml
-      service: notebook 
+      service: notebook
     networks:
       datapipe_net:
   kafka-broker:
-    extends: 
+    extends:
       file: docker-compose-base.yaml
-      service: kafka-broker 
+      service: kafka-broker
     networks:
       datapipe_net:
+  generator:
+    build:
+      context: services/kafka
+      dockerfile: Dockerfile
+    depends_on:
+      kafka-broker:
+        condition: service_healthy
+    environment:
+      - BOOTSTRAP_SERVERS=kafka-broker:9092
+    networks:
+      datapipe_net:
+    ports:
+      - 1111-2222:8000
+    volumes:
+      - ./services/kafka/src/:/home/app/
+    command: [ "python", "-m", "generator", "--topic", "message" ]
+    scale: 2
   risingwave:
     image: risingwavelabs/risingwave
     container_name: risingwave
@@ -22,7 +39,7 @@ services:
     command: single_node
     scale: 1
     environment:
-      - RUNTIME_ENV=docker 
+      - RUNTIME_ENV=docker
       - AWS_ACCESS_KEY_ID=admin
       - AWS_SECRET_ACCESS_KEY=password
       - AWS_REGION=us-east-1

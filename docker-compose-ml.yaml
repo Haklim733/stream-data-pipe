@@ -1,25 +1,25 @@
 services:
   notebook:
-    extends: 
+    extends:
       file: docker-compose-base.yaml
-      service: notebook 
+      service: notebook
   kafka-broker:
-    extends: 
+    extends:
       file: docker-compose-base.yaml
-      service: kafka-broker 
+      service: kafka-broker
   risingwave:
-    extends: 
+    extends:
       file: docker-compose-rw.yaml
-      service: risingwave 
+      service: risingwave
   ml:
     build: ./services/ml
     ports:
-    - "8000:8000"
+      - "8000:8000"
     networks:
       datapipe_net:
-    command: ["faststream", "run", "stream:app"]
+    command: [ "faststream", "run", "stream:app" ]
     depends_on:
-      - kafka-broker 
+      - kafka-broker
     environment:
       - MODEL_DIR=/app/models
       - KAFKA_CONSUMER_TOPIC=book
@@ -31,7 +31,7 @@ services:
           devices:
             - driver: nvidia
               count: 1
-              capabilities: [gpu]
+              capabilities: [ gpu ]
     volumes:
       - ./services/ml/tmp/:/app/models/
       - ./services/ml/src/:/app/
