@@ -13,8 +13,10 @@ services:
       service: risingwave
   generator:
     extends:
-      file: docker-compose-rw.yaml
+      file: docker-compose-base.yaml
       service: generator
+    command: [ "python", "-m", "generator", "--topic", "message" ]
+    scale: 3
   ml:
     build: ./services/ml
     ports:

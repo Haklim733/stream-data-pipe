@@ -1,15 +1,21 @@
 services:
   notebook:
-    extends: 
+    extends:
       file: docker-compose-base.yaml
-      service: notebook 
+      service: notebook
     depends_on:
       - rest
       - minio
   kafka-broker:
-    extends: 
+    extends:
       file: docker-compose-base.yaml
-      service: kafka-broker 
+      service: kafka-broker
+  generator:
+    extends:
+      file: docker-compose-base.yaml
+      service: generator
+    command: [ "python", "-m", "generator", "--topic", "message" ]
+    scale: 2
   rest:
     image: apache/iceberg-rest-fixture
     container_name: iceberg-rest
@@ -38,7 +44,7 @@ services:
     ports:
       - 9001:9001
       - 9000:9000
-    command: ["server", "/data", "--console-address", ":9001"]
+    command: [ "server", "/data", "--console-address", ":9001" ]
   mc:
     depends_on:
       - minio

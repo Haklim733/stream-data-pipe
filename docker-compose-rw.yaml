@@ -12,22 +12,11 @@ services:
     networks:
       datapipe_net:
   generator:
-    build:
-      context: services/kafka
-      dockerfile: Dockerfile
-    depends_on:
-      kafka-broker:
-        condition: service_healthy
-    environment:
-      - BOOTSTRAP_SERVERS=kafka-broker:9092
-    networks:
-      datapipe_net:
-    ports:
-      - 1111-2222:8000
-    volumes:
-      - ./services/kafka/src/:/home/app/
+    extends:
+      file: docker-compose-base.yaml
+      service: generator
     command: [ "python", "-m", "generator", "--topic", "message" ]
-    scale: 2
+    scale: 3
   risingwave:
     image: risingwavelabs/risingwave
     container_name: risingwave

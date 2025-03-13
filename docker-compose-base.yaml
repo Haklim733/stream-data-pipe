@@ -70,5 +70,22 @@ services:
       interval: 3s
       timeout: 2s
       retries: 5
+  generator:
+    build:
+      context: services/kafka
+      dockerfile: Dockerfile
+    depends_on:
+      kafka-broker:
+        condition: service_healthy
+    environment:
+      - BOOTSTRAP_SERVERS=kafka-broker:9092
+    networks:
+      datapipe_net:
+    ports:
+      - 1111-2222:8000
+    volumes:
+      - ./services/kafka/src/:/home/app/
+    command: [ "python", "-m", "generator", "--topic", "message" ]
+    scale: 2
 networks:
   datapipe_net:

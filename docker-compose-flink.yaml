@@ -1,19 +1,19 @@
 services:
   notebook:
-    extends: 
+    extends:
       file: docker-compose-base.yaml
-      service: notebook 
+      service: notebook
     networks:
       datapipe_net:
   kafka-broker:
-    extends: 
+    extends:
       file: docker-compose-base.yaml
-      service: kafka-broker 
+      service: kafka-broker
     networks:
       datapipe_net:
   flink-jobmanager:
     container_name: flink-jobmanager
-    build: ./services/flink 
+    build: ./services/flink
     ports:
       - "8081:8081"
     command: jobmanager
@@ -29,7 +29,7 @@ services:
         heartbeat.interval: 1000
         heartbeat.timeout: 5000
       - BOOTSTRAP_SERVERS=kafka-broker:9092
-      - RUNTIME_ENV=docker 
+      - RUNTIME_ENV=docker
       - AWS_ACCESS_KEY_ID=admin
       - AWS_SECRET_ACCESS_KEY=password
       - AWS_REGION=us-east-1
@@ -55,7 +55,7 @@ services:
         heartbeat.interval: 1000
         heartbeat.timeout: 5000
       - BOOTSTRAP_SERVERS=kafka-broker:9092
-      - RUNTIME_ENV=docker 
+      - RUNTIME_ENV=docker
       - AWS_ACCESS_KEY_ID=admin
       - AWS_SECRET_ACCESS_KEY=password
       - AWS_REGION=us-east-1
