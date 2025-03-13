@@ -1,7 +1,6 @@
 import argparse
 import logging
 import os
-import re
 import sys
 
 from faker import Faker
@@ -21,6 +20,7 @@ def main(topic: str, max_time: int):
     generator = Publisher(client=client)
     fake = Faker()
     fake.add_provider(lorem)
+    logger.info('publishing messages to topic "%s"', topic)
     generator.publish(
         topic=topic,
         message=TextMessage(fake.sentence),
@@ -30,6 +30,7 @@ def main(topic: str, max_time: int):
 
 
 if __name__ == "__main__":
+    logging.basicConfig(stream=sys.stdout, level=logging.INFO)
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--topic", dest="topic", required=True, help="specify kafka topic to consume"

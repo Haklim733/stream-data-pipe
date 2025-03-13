@@ -1,22 +1,13 @@
 export KAFKA_BROKER='kafka-broker:9092' # run in docker containers
-export TOPIC='brothers-karamazov'
-
-
-## run script since starting stream via jupyter notebook will close before messages are populated
-#create topic first - required for streaming
-docker exec notebook /usr/bin/python /home/app/kafka/src/create_topic.py --topic=${TOPIC}
+export TOPIC='message'
 
 # run spark stream output to file
-## terminate time can be adjusted 
-# docker exec -itd notebook spark-submit --conf spark.cores.max=1 /home/app/src/kafka_stream.py \
-#     --topic=${TOPIC} --terminate=20 --output=/home/app/output --format=avro
+# already running via generator on docker compose up
 
 #spark stream output to iceberg
+json_schema='{"message":"string","created_at":"number","id":"string"}'
 docker exec -itd notebook spark-submit --conf spark.cores.max=1 /home/app/src/kafka_stream.py \
-    --topic=${TOPIC} --terminate=45 --output=iceberg --format=avro
+    --topic=${TOPIC} --terminate=45 --output=iceberg --format=json --schema=$json_schema
 
-
-#stream to topic after waiting for stream job to initialize
-sleep 10
-docker exec notebook /usr/bin/python /home/app/kafka/src/create_topic.py --topic=${TOPIC} \
-    --file=/home/app/data/brothers-karamazov.txt --format=avro
+# docker exec -itd notebook spark-submit --conf spark.cores.max=1 /home/app/src/kafka_stream.py \
+#     --topic=${TOPIC} --terminate=45 --output=iceberg --format=avro --schema='[{"name": "message", "type": "string"}, {"name": "created_at", "type": "long"}, {"name": "id", "type": "string"}]'

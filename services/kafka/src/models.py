@@ -123,6 +123,7 @@ class Publisher(Generator):
         while time.time() - start_time < max_time:
             data = message.generate(**message_params)
             data.update({"id": self.id})
+            logger.info(f"publishing message - {data}")
             self.client.send_items(topic, data)
             sleep_time = random.uniform(0.1, 1.0)  # Sleep for 100-1000 milliseconds
             time.sleep(sleep_time)
