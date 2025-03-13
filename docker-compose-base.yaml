@@ -55,7 +55,7 @@ services:
       - KAFKA_TRANSACTION_STATE_LOG_MIN_ISR=1
       - KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS=0
       - KAFKA_NUM_PARTITIONS=3
-      - KAFKA_AUTO_CREATE_TOPICS_ENABLE=false # Kafka will automatically create topics if needed.
+      - KAFKA_AUTO_CREATE_TOPICS_ENABLE=true
       - KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR=1 # Since we’re running one broker, one replica is enough.
       - KAFKA_LOG_RETENTION_HOURS=24 # Keep logs for 1 day
       - KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS=0 # No delay for consumer rebalancing.

@@ -11,6 +11,10 @@ services:
     extends:
       file: docker-compose-rw.yaml
       service: risingwave
+  generator:
+    extends:
+      file: docker-compose-rw.yaml
+      service: generator
   ml:
     build: ./services/ml
     ports:
@@ -19,11 +23,12 @@ services:
       datapipe_net:
     command: [ "faststream", "run", "stream:app" ]
     depends_on:
-      - kafka-broker
+      generator:
+        condition: service_started
     environment:
       - MODEL_DIR=/app/models
-      - KAFKA_CONSUMER_TOPIC=book
-      - KAFKA_PRODUCER_TOPIC=book_emotions
+      - KAFKA_CONSUMER_TOPIC=message
+      - KAFKA_PRODUCER_TOPIC=message_emotions
       - BOOTSTRAP_SERVERS=kafka-broker:9092
     deploy:
       resources:

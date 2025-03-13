@@ -1,17 +1,15 @@
 from enum import Enum
 import logging
-import json
 import os
 from pathlib import Path
 import sys
 from typing import TypeVar, Generic
 
-from pydantic import BaseModel, ValidationError
+from pydantic import BaseModel
 import torch
 
 from faststream import Context, ContextRepo, FastStream
 from faststream.confluent import KafkaBroker
-from faststream.confluent import KafkaMessage
 
 from transformers import AutoTokenizer, AutoModel
 from transformers import RobertaTokenizer, RobertaForSequenceClassification
@@ -52,15 +50,14 @@ class MlModel(Generic[ModelType, TokenizerType]):
         self.model.to(device)
 
 
-class EmotionRequest(BaseModel):
-    text: str
-    line: int
+class Message(BaseModel):
+    id: str
+    created_at: int
+    message: str
 
 
-class EmotionResponse(BaseModel):
+class Response(Message):
     emotion: str
-    text: str
-    line: int
 
 
 class ModelName(Enum):
@@ -115,16 +112,31 @@ def main(input_text: str, model: MlModel) -> str:
     PRODUCER_TOPIC,
     title="emotions",
     description="sentiment analysis on line of text",
-    schema=EmotionResponse,
+    schema=Response,
     include_in_schema=False,
     batch=False,
 )
-def predict(line: int, text: str, model=Context()) -> dict[str, int | str]:
-    emotion = main(text, model)
-    return {"emotion": emotion, "text": text, "line": line}
+def predict(
+    id: str, created_at: int, message: str, model=Context()
+) -> dict[str, int | str]:
+    emotion = main(message, model)
+    return {
+        "id": id,
+        "created_at": created_at,
+        "message": message,
+        "emotion": emotion,
+    }
 
 
 if __name__ == "__main__":
-    text = "I love programming!"
-    result = main(text)
-    print(result)
+    from unittest.mock import MagicMock
+
+    predict(
+        Message(
+            message="I love programming!",
+            id="1",
+            created_at=1,
+            text="I love programming!",
+        ),
+        model=MagicMock(),
+    )
