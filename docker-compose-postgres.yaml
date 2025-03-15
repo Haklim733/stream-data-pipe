@@ -24,6 +24,10 @@ services:
       - POSTGRES_DB=default
       - POSTGRES_USER=admin
       - POSTGRES_PASSWORD=admin
+    volumes:
+      - ./services/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
+      # - ./services/postgres/postgresql.conf:/etc/postgres/postgresql.conf
+      # command: "-c 'config_file=/etc/postgres/postgresql.conf'"
     healthcheck:
       test: [ "CMD", "pg_isready", "-U", "admin", "-d", "default" ]
       interval: 1s

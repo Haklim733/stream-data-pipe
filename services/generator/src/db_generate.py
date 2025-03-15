@@ -30,7 +30,12 @@ def main(max_time: int):
     generator = DBWriter(
         client=client,
         table_name="messages",
-        schema={"id": "varchar", "created_at": "bigint", "message": "text"},
+        schema={
+            "id": "varchar",
+            "created_at": "bigint",
+            "message": "text",
+            "primary_key": "(id, created_at)",
+        },
         primary_keys=["id", "created_at"],
     )
     fake = Faker()
@@ -54,5 +59,8 @@ if __name__ == "__main__":
 
     argv = sys.argv[1:]
     known_args, _ = parser.parse_known_args(argv)
-    max_time = known_args.max_time or 120
+
+    max_time = 120
+    if known_args.max_time:
+        max_time = int(known_args.max_time)
     main(max_time=max_time)

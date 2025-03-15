@@ -245,16 +245,23 @@ class DBWriter(Generator):
         columns = [
             sql.SQL("{} {}").format(sql.Identifier(key), sql.SQL(value))
             for key, value in self.schema.items()
+            if key != "primary_key"
         ]
+
+        primary_key_constraint = sql.SQL(
+            "PRIMARY KEY {}".format(self.schema["primary_key"])
+        )
         query = sql.SQL(
             """
             CREATE TABLE IF NOT EXISTS {table} (
-                {columns}
+                {columns},
+                {primary_key_constraint}
             );
         """
         ).format(
             table=sql.Identifier(self.table_name),
             columns=sql.SQL(", ").join(columns),
+            primary_key_constraint=primary_key_constraint,
         )
         self.client.execute(query)
 
@@ -269,7 +276,7 @@ class DBWriter(Generator):
         while time.time() - start_time < max_time:
             data = message.generate(**message_params)
             data.update({"id": self.id})
-            logger.info(f"publishing message - {data}")
+            logger.info(f"writing record- {data}")
             self.client.upsert(self.table_name, data, primary_key=self.primary_keys)
             sleep_time = random.uniform(0.1, 1.0)  # Sleep for 100-1000 milliseconds
             time.sleep(sleep_time)
