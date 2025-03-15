@@ -1,0 +1,33 @@
+services:
+  # generator:
+  #   extends:
+  #     file: docker-compose-base.yaml
+  #     service: generator
+  #   command: [ "python", "-m", "generator", "--topic", "message" ]
+  #   scale: 3
+  db:
+    image: postgres:17-alpine
+    container_name: postgres
+    shm_size: 128mb
+    restart: always
+    networks:
+      datapipe_net:
+    scale: 1
+    ports:
+      - "5432:5432"
+    environment:
+      - RUNTIME_ENV=docker
+      - AWS_ACCESS_KEY_ID=admin
+      - AWS_SECRET_ACCESS_KEY=password
+      - AWS_REGION=us-east-1
+      - PGUSER=admin
+      - POSTGRES_DB=default
+      - POSTGRES_USER=admin
+      - POSTGRES_PASSWORD=admin
+    healthcheck:
+      test: [ "CMD", "pg_isready", "-U", "admin", "-d", "default" ]
+      interval: 1s
+      timeout: 5s
+      retries: 10
+networks:
+  datapipe_net:

@@ -1,0 +1,11 @@
+[project]
+name = "generator"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "faker>=37.0.0",
+    "kafka-python>=2.0.6",
+    "psycopg>=3.2.6",
+]
