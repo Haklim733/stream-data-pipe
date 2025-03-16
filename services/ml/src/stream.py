@@ -126,17 +126,3 @@ def predict(
         "message": message,
         "emotion": emotion,
     }
-
-
-if __name__ == "__main__":
-    from unittest.mock import MagicMock
-
-    predict(
-        Message(
-            message="I love programming!",
-            id="1",
-            created_at=1,
-            text="I love programming!",
-        ),
-        model=MagicMock(),
-    )

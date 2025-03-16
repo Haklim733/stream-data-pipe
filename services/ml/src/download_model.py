@@ -22,11 +22,16 @@ def main(model: str):
 
 
 if __name__ == "__main__":
+    import logging
+    import sys
+
+    logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
+    logging.debug("This message will go to stdout")
+
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--model", dest="model", required=False, help="specify model to download"
     )
     argv = sys.argv[1:]
     known_args, _ = parser.parse_known_args(argv)
-
     main(model=known_args.model)

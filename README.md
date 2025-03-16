@@ -52,7 +52,7 @@ Results can be also seen via `psql -h localhost -p 4566 -d dev -U root` and quer
 
 ## apache kafka -> ml inference -> kafka
 
-Run `docker compose -f docker-compose-ml.yaml up -d`
+Run `export COMPOSE_BAKE=true docker compose -f docker-compose-ml.yaml up -d`
 
 Messages are published to a kafka topic which is ingested by the 'ml' service using python faststream and huggingface to produce an emotion sentiment analysis that is sent back as a kafka topic. The topic names can be set in the docker-compose.yaml for notebook and ml services.
 

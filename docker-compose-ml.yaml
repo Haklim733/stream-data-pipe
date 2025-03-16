@@ -23,7 +23,7 @@ services:
       - "8000:8000"
     networks:
       datapipe_net:
-    command: [ "faststream", "run", "stream:app" ]
+    command: [ "faststream", "run", "src/stream:app" ]
     depends_on:
       generator:
         condition: service_started
@@ -40,7 +40,6 @@ services:
               count: 1
               capabilities: [ gpu ]
     volumes:
-      - ./services/ml/tmp/:/app/models/
-      - ./services/ml/src/:/app/
+      - ./services/ml/src/:/app/src
 networks:
   datapipe_net:
