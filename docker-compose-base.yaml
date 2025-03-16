@@ -72,7 +72,7 @@ services:
       retries: 5
   generator:
     build:
-      context: services/kafka
+      context: services/generator
       dockerfile: Dockerfile
     depends_on:
       kafka-broker:
@@ -83,9 +83,7 @@ services:
       datapipe_net:
     ports:
       - 1111-2222:8000
-    volumes:
-      - ./services/kafka/src/:/home/app/
-    command: [ "python", "-m", "generator", "--topic", "message" ]
+    command: [ "python", "-m", "kafka_generate", "--topic", "message" ]
     scale: 2
 networks:
   datapipe_net:

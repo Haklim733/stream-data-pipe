@@ -1,14 +1,24 @@
 services:
-  # generator:
-  #   extends:
-  #     file: docker-compose-base.yaml
-  #     service: generator
-  #   command: [ "python", "-m", "generator", "--topic", "message" ]
-  #   scale: 3
-  db:
-    image: postgres:17-alpine
+  kafka-broker:
+    extends:
+      file: docker-compose-base.yaml
+      service: kafka-broker
+  generator:
+    extends:
+      file: docker-compose-base.yaml
+      service: generator
+    command: [ "python", "-m", "db_generate" ]
+    environment:
+      - DB_HOST=postgres
+      - DB_NAME=stream
+    scale: 1
+    depends_on:
+      postgres:
+        condition: service_healthy
+  postgres:
     container_name: postgres
-    shm_size: 128mb
+    build: ./services/postgres
+    shm_size: 100mb
     restart: always
     networks:
       datapipe_net:
@@ -20,16 +30,19 @@ services:
       - AWS_ACCESS_KEY_ID=admin
       - AWS_SECRET_ACCESS_KEY=password
       - AWS_REGION=us-east-1
-      - PGUSER=admin
-      - POSTGRES_DB=default
+      - POSTGRES_DB=stream
       - POSTGRES_USER=admin
       - POSTGRES_PASSWORD=admin
+      - REPLICATION_PASSWORD=replication_password
+      - REPLICATION_SLOT_NAME=cdc_slot
+      - PUBLICATION_NAME=cdc
+    tmpfs:
+      - /var/lib/postgresql/data
     volumes:
-      - ./services/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
-      # - ./services/postgres/postgresql.conf:/etc/postgres/postgresql.conf
-      # command: "-c 'config_file=/etc/postgres/postgresql.conf'"
+      - ./services/postgres/init.sh:/docker-entrypoint-initdb.d/init.sh
+    command: [ "-c", "config_file=postgresql.conf" ]
     healthcheck:
-      test: [ "CMD", "pg_isready", "-U", "admin", "-d", "default" ]
+      test: [ "CMD", "pg_isready", "-U", "admin", "-d", "stream" ]
       interval: 1s
       timeout: 5s
       retries: 10
