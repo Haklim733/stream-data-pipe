@@ -37,7 +37,7 @@ class KafkaClient:
             acks="all",
             retries=3,
             retry_backoff_ms=100,
-            request_timeout_ms=3000,  # 30 sec
+            request_timeout_ms=1000,
         )
 
     def delete_topics(self, topic_names: typing.List[str]):

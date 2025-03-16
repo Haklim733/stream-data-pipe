@@ -36,6 +36,7 @@ def create_topic(topic_name: str, admin_client: KafkaAdminClient):
     if topic_name in [x["topic"] for x in topics]:
         admin_client.delete_topics([topic_name])
     admin_client.create_topics([topic], validate_only=False)
+    admin_client.close()
 
 
 def check_file_size(file_path):
@@ -68,14 +69,17 @@ def send_to_kafka(
     format: str,
     **kwargs,
 ) -> dict[str, int]:
+
     file_format = FileFormat(format)
+
     producer = KafkaProducer(
         bootstrap_servers=bootstrap_servers,
         acks="all",
         retries=3,
-        retry_backoff_ms=100,
-        request_timeout_ms=30000,  # 30 sec
+        retry_backoff_ms=200,
+        request_timeout_ms=30500,
     )
+
     fields = kwargs.get("fields") or [
         {"name": "line", "type": "int"},
         {"name": "text", "type": "string"},
@@ -129,7 +133,7 @@ def send_to_kafka(
                 producer.send(topic_name, value=line.strip().encode("utf-8"))
 
                 messages += 1
-    producer.close()
+    producer.close(timeout=1000)
     return {"messages": messages, "file_size": file_size}
 
 
