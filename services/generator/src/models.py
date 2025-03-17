@@ -207,7 +207,7 @@ class Publisher(Generator):
         start_time = time.time()
         while time.time() - start_time < max_time:
             data = message.generate(**message_params)
-            data.update({"id": self.id})
+            data.update({"generator_id": self.id})
             logger.info(f"publishing message - {data}")
             self.client.send_items(topic, data)
             sleep_time = random.uniform(0.1, 1.0)  # Sleep for 100-1000 milliseconds
@@ -221,13 +221,16 @@ class DBWriter(Generator):
         table_name: str,
         schema: dict[str, str],
         primary_keys: list[str] = [],
+        create_table: bool = False,
     ):
         self.id = str(uuid.uuid4())
         self.client = client
         self.table_name: str = table_name
         self.schema: dict[str, str] = schema
         self.primary_keys: str = primary_keys
-        self._create_table()
+
+        if create_table:
+            self._create_table()
 
     def _drop_table(self):
         query = sql.SQL(
@@ -255,7 +258,9 @@ class DBWriter(Generator):
             """
             CREATE TABLE IF NOT EXISTS {table} (
                 {columns},
-                {primary_key_constraint}
+                {primary_key_constraint},
+                inserted_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
             );
         """
         ).format(

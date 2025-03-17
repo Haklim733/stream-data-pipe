@@ -1,0 +1,1 @@
+If running docker-compose-cdc.yaml, then there is no need to create table since this is handled in the services/postgres/init.sh command which also includes multiple other commands that must occur before sequin can launch successfully.

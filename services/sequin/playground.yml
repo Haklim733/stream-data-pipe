@@ -1,0 +1,20 @@
+account:
+  name: "Playground"
+
+users:
+  - account: "Playground"
+    email: "admin@sequinstream.com"
+    password: "sequinpassword!"
+
+databases:
+  - name: "cdc"
+    username: "admin"
+    password: "admin"
+    hostname: "postgres"
+    database: "cdc"
+    port: 5432
+    slot_name: "cdc_slot"
+    publication_name: "cdc"
+    tables:
+      - table_name: "messages"
+        sort_column_name: "updated_at"

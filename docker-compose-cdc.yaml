@@ -1,0 +1,91 @@
+services:
+  kafka-broker:
+    extends:
+      file: docker-compose-base.yaml
+      service: kafka-broker
+  generator:
+    extends:
+      file: docker-compose-base.yaml
+      service: generator
+    command: [ "python", "-m", "db_generate" ]
+    environment:
+      - DB_HOST=postgres
+      - DB_NAME=cdc
+    scale: 1
+    depends_on:
+      postgres:
+        condition: service_healthy
+  postgres:
+    container_name: postgres
+    image: postgres:16-alpine
+    shm_size: 100mb
+    restart: no
+    networks:
+      datapipe_net:
+    scale: 1
+    ports:
+      - "5432:5432"
+    environment:
+      - RUNTIME_ENV=docker
+      - AWS_ACCESS_KEY_ID=admin
+      - AWS_SECRET_ACCESS_KEY=password
+      - AWS_REGION=us-east-1
+      - POSTGRES_DB=cdc
+      - POSTGRES_USER=admin
+      - POSTGRES_PASSWORD=admin
+      - REPLICATION_SLOT_NAME=cdc_slot
+      - PUBLICATION_NAME=cdc
+      - TABLE=messages
+    tmpfs:
+      - /var/lib/postgresql/data
+    volumes:
+      - ./services/postgres/init.sh:/docker-entrypoint-initdb.d/init.sh
+    command: [ "-c", "wal_level=logical", "-c", "max_wal_senders=10", "-c", "max_replication_slots=2" ]
+    healthcheck:
+      test: [ "CMD", "pg_isready", "-U", "admin", "-d", "cdc" ]
+      interval: 1s
+      timeout: 5s
+      retries: 10
+  sequin:
+    image: sequin/sequin:latest
+    pull_policy: always
+    ports:
+      - "7376:7376"
+    environment:
+      - PG_HOSTNAME=postgres
+      - PG_DATABASE=cdc
+      - PG_PORT=5432
+      - PG_USERNAME=admin
+      - PG_PASSWORD=admin
+      - PG_POOL_SIZE=5
+      - SECRET_KEY_BASE=wDPLYus0pvD6qJhKJICO4dauYPXfO/Yl782Zjtpew5qRBDp7CZvbWtQmY0eB13If
+      - VAULT_KEY=2Sig69bIpuSm2kv0VQfDekET2qy8qUZGI8v3/h3ASiY=
+      - REDIS_URL=redis://redis:6379
+      - CONFIG_FILE_PATH=/config/playground.yml
+    networks:
+      datapipe_net:
+    volumes:
+      - ./services/sequin/playground.yml:/config/playground.yml
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+  redis:
+    image: redis:7
+    networks:
+      datapipe_net:
+    ports:
+      - "6379:6379"
+    command: [ "redis-server", "--port", "6379" ]
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 1s
+      timeout: 5s
+      retries: 3
+    volumes:
+      - ./services/sequin/sequin_redis_data:/data
+networks:
+  datapipe_net:
+
+

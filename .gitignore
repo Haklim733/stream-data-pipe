@@ -27,6 +27,7 @@ build/
 .gradle/
 .settings/
 **/tmp
+**/data
 
 #python
 **/__pycache__
