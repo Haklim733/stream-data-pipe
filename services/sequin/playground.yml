@@ -18,3 +18,17 @@ databases:
     tables:
       - table_name: "messages"
         sort_column_name: "updated_at"
+sinks:
+  - name: "kafka-sink"
+    database: "cdc"
+    table: "public.messages"
+    batch_size: 10
+    status: "active"
+    destination:
+      type: "kafka"
+      hosts: "kafka-broker:9092"
+      topic: "cdc"
+    backfill:
+      enabled: true
+      batch_size: 10
+      checkpoint_column: "updated_at"

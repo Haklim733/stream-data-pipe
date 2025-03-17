@@ -41,6 +41,7 @@ class DbClient:
                 host=self.host,
                 port=self.port,
             )
+            self.conn.autocommit = False
 
     def close(self):
         if self.conn and not self.conn.closed:
@@ -51,23 +52,38 @@ class DbClient:
         return self.conn.cursor()
 
     @contextmanager
-    def cursor(self):
+    def cursor(self, force_rollback=False):
         self.connect()
         cursor = self.conn.cursor()
         try:
             yield cursor
-            self.conn.commit()
+            if force_rollback:
+                logger.info("TRANSACTION - ROLLBACK (forced)")
+                self.conn.rollback()
+            else:
+                logger.info("TRANSACTION - COMMIT")
+                self.conn.commit()
         except Exception as e:
+            logger.info("TRANSACTION - ROLLBACK (exception)")
             self.conn.rollback()
             raise e
         finally:
             cursor.close()
 
-    def execute(self, stmt: str):
-        with self.cursor() as cur:
-            cur.execute(stmt)
+    def execute(self, stmt: str, values: list[str] = None, rollback: bool = False):
+        with self.cursor(force_rollback=rollback) as cur:
+            if values:
+                cur.execute(stmt, values)
+            else:
+                cur.execute(stmt)
 
-    def upsert(self, table_name: str, data: tuple[str | int], primary_key: list[str]):
+    def upsert(
+        self,
+        table_name: str,
+        data: tuple[str | int],
+        primary_key: list[str],
+        random_rollback: float = 0,
+    ):
         """
         Upsert data into the specified table.
 
@@ -75,6 +91,7 @@ class DbClient:
         - table_name (str): Name of the table to upsert data into.
         - data (dict): Dictionary containing the data to upsert.
         - primary_key (str): Name of the primary key column.
+        - random_rollback (float): Probability of rolling back the transaction. Between 0 and 1 (inclusive)
         Returns:
         - None
         """
@@ -91,7 +108,14 @@ class DbClient:
         ).format(
             table=sql.Identifier(table_name),
             columns=columns,
-            values=placeholders,
+            values=sql.SQL(", ").join(
+                (
+                    sql.SQL("to_timestamp({} / 1000)").format(sql.Placeholder())
+                    if key == "created_at"
+                    else sql.Placeholder()
+                )
+                for key in data.keys()
+            ),
             primary_key=sql.SQL(", ").join(
                 [sql.Identifier(key) for key in primary_key]
             ),
@@ -101,8 +125,11 @@ class DbClient:
                 if key not in primary_key
             ),
         )
-        with self.cursor() as cur:
-            cur.execute(upsert_query, list(data.values()))
+
+        if random.random() < random_rollback:
+            self.execute(upsert_query, list(data.values()), rollback=True)
+        else:
+            self.execute(upsert_query, list(data.values()), rollback=False)
 
 
 class KafkaClient:
@@ -181,12 +208,13 @@ class TextMessage(Message):
     def generate(self, **kwargs):
         created_at = int(time.time() * 1000)
         message = self.generate_method(**kwargs)
-        return {"message": message, "created_at": created_at}
+        event_id: str = uuid.uuid4().hex
+        return {"message": message, "created_at": created_at, "event_id": event_id}
 
 
 class Generator(ABC):
     def __init__(self, client: KafkaClient | DbClient) -> None:
-        self.id = str(uuid.uuid4())
+        self.origin_id = uuid.uuid4().hex
         self.client = client
 
     @abstractmethod
@@ -207,7 +235,7 @@ class Publisher(Generator):
         start_time = time.time()
         while time.time() - start_time < max_time:
             data = message.generate(**message_params)
-            data.update({"generator_id": self.id})
+            data.update({"origin_id": self.id})
             logger.info(f"publishing message - {data}")
             self.client.send_items(topic, data)
             sleep_time = random.uniform(0.1, 1.0)  # Sleep for 100-1000 milliseconds
@@ -219,15 +247,15 @@ class DBWriter(Generator):
         self,
         client,
         table_name: str,
-        schema: dict[str, str],
-        primary_keys: list[str] = [],
+        primary_keys: list[str],
+        schema: dict[str, str] = {},
         create_table: bool = False,
     ):
-        self.id = str(uuid.uuid4())
+        self.id = uuid.uuid4().hex
         self.client = client
         self.table_name: str = table_name
         self.schema: dict[str, str] = schema
-        self.primary_keys: str = primary_keys
+        self.primary_keys: list[str] = primary_keys
 
         if create_table:
             self._create_table()
@@ -244,16 +272,19 @@ class DBWriter(Generator):
 
     def _create_table(self):
         self._drop_table()
+        if not self.schema:
+            raise Exception("Schema is empty")
 
         columns = [
             sql.SQL("{} {}").format(sql.Identifier(key), sql.SQL(value))
             for key, value in self.schema.items()
             if key != "primary_key"
         ]
-
-        primary_key_constraint = sql.SQL(
-            "PRIMARY KEY {}".format(self.schema["primary_key"])
+        j
+        primary_key_constraint = sql.SQL("PRIMARY KEY ({})").format(
+            sql.SQL(", ").join([sql.Identifier(key) for key in self.primary_keys])
         )
+
         query = sql.SQL(
             """
             CREATE TABLE IF NOT EXISTS {table} (
@@ -276,14 +307,21 @@ class DBWriter(Generator):
         max_time: int,
         message: Message,
         message_params: dict[str, typing.Any] = {},
+        random_rollback: float = 0,
     ):
         start_time = time.time()
         while time.time() - start_time < max_time:
             data = message.generate(**message_params)
-            data.update({"id": self.id})
+            data.update({"origin_id": self.id})
             logger.info(f"writing record- {data}")
-            self.client.upsert(self.table_name, data, primary_key=self.primary_keys)
-            sleep_time = random.uniform(0.1, 1.0)  # Sleep for 100-1000 milliseconds
+            self.client.upsert(
+                self.table_name,
+                data,
+                primary_key=["event_id"],
+                random_rollback=random_rollback,
+            )
+            # sleep_time = random.uniform(0.1, 1.0)  # Sleep for 100-1000 milliseconds
+            sleep_time = 1
             time.sleep(sleep_time)
 
 

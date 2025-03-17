@@ -6,5 +6,6 @@ notebooks/*
 !notebooks/kafka-spark-stream.ipynb
 !notebooks/kafka-risingwave.ipynb
 !notebooks/kafka-ml-inference.ipynb
+!notebooks/postgres-cdc.ipynb
 tmp
 output

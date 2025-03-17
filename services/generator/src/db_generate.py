@@ -5,8 +5,10 @@ import sys
 
 from faker import Faker
 from faker.providers import lorem
-from models import DbClient, DBWriter, TextMessage
+from models import DbClient, DBWriter, KafkaClient, TextMessage
 
+
+BOOTSTRAP_SERVERS = os.getenv("BOOTSTRAP_SERVERS", "localhost:19092")
 RUNTIME_ENV = os.getenv("RUNTIME_ENV", "local")
 DB_NAME = os.getenv("DB_NAME", "default")
 DB_USER = os.getenv("DB_USER", "admin")
@@ -20,6 +22,10 @@ logger = logging.getLogger(__name__)
 def main(max_time: int):
     if not max_time:
         max_time = 120
+
+    kafka_client = KafkaClient(BOOTSTRAP_SERVERS)
+    kafka_client.create_topics(["cdc"], num_partitions=1, replication_factor=1)
+
     client = DbClient(
         dbname=DB_NAME,
         user=DB_USER,
@@ -30,13 +36,8 @@ def main(max_time: int):
     generator = DBWriter(
         client=client,
         table_name="messages",
-        schema={
-            "id": "varchar",
-            "created_at": "bigint",
-            "message": "text",
-            "primary_key": "(id, created_at)",
-        },
-        primary_keys=["id", "created_at"],
+        primary_keys=["event_id"],
+        create_table=False,
     )
     fake = Faker()
     fake.add_provider(lorem)
@@ -44,6 +45,7 @@ def main(max_time: int):
         message=TextMessage(fake.sentence),
         message_params={"nb_words": 15},
         max_time=max_time,
+        random_rollback=0,
     )
 
 

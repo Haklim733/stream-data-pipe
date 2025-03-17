@@ -3,9 +3,9 @@
 psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-EOSQL
     
     CREATE TABLE IF NOT EXISTS $TABLE (
-        id serial primary key,
-        generator_id varchar(50),
-        messages text,
+        event_id char(32) PRIMARY KEY,
+        origin_id char(32),
+        message text,
         created_at timestamp,
         inserted_at timestamp default now(),
         updated_at timestamp default now()
@@ -31,7 +31,7 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-E
     GRANT SELECT ON ALL TABLES IN SCHEMA public TO sequin_user;
 
     ALTER USER sequin_user WITH REPLICATION;
-    CREATE PUBLICATION $PUBLICATION_NAME FOR ALL TABLES;
+    CREATE PUBLICATION $PUBLICATION_NAME FOR TABLE public.$TABLE;
     SELECT * FROM pg_create_logical_replication_slot('$REPLICATION_SLOT_NAME', 'pgoutput',  false, true);
 EOSQL
     # CREATE ROLE replication_role WITH REPLICATION LOGIN PASSWORD '$REPLICATION_PASSWORD';

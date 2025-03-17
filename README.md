@@ -11,6 +11,7 @@ Repo to learn and test real-time data ingestion and processing using kafka,flink
 3. apache kafka -> apache spark -> iceberg / s3
 4. apache kafka -> risingwave
 5. apache kafka -> emotion sentiment analysis (python) -> kafka
+6. postgres -> sequin -> kafka
 
 # Examples
 
@@ -59,6 +60,12 @@ Steps:
 (2) Navigate to `localhost:8888` and execute the cells in the `kafka-risingwave` notebook.
 
 Results can be also seen via `psql -h localhost -p 4566 -d dev -U root` and querying the `<topic>_view` table.
+
+## postgres -> sequin -> kafka 
+Messages are inserted into postgres by generator service. Sequin service streams changes to kafka topic 'cdc'.
+
+You can verify the stream source and sink throughput by navigating to http://localhost:7376/
+You can see also verify the cdc messages using localhost:8888 and checking out the 'postgres-cdc' notebook. 
 
 ## logs
 
