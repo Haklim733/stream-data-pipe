@@ -117,11 +117,12 @@ def main(input_text: str, model: MlModel) -> str:
     batch=False,
 )
 def predict(
-    id: str, created_at: int, message: str, model=Context()
+    origin_id: str, event_id: str, created_at: int, message: str, model=Context()
 ) -> dict[str, int | str]:
     emotion = main(message, model)
     return {
-        "id": id,
+        "origin_id": origin_id,
+        "event_id": event_id,
         "created_at": created_at,
         "message": message,
         "emotion": emotion,
