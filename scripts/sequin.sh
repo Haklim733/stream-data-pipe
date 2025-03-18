@@ -1,2 +1,0 @@
-curl -L https://github.com/sequinstream/sequin/releases/latest/download/sequin-docker-compose.zip -o services/sequin/tmp/sequin-docker-compose.zip \
-  && unzip services/sequin/tmp/sequin-docker-compose.zip -d services/sequin && rm services/sequin/tmp/sequin-docker-compose.zip

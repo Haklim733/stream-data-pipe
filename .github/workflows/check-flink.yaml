@@ -1,0 +1,44 @@
+# .github/workflows/flink-compose.yaml
+name: Flink Docker Compose
+
+on:
+  push:
+    branches: [ main, master ]
+    paths:
+      - 'docker-compose-flink.yaml'
+      - 'services/flink/**/*'
+      - 'scripts/run-flink-sentiment.sh'
+  pull_request:
+    branches: [ main, master ]
+    paths:
+      - 'docker-compose-flink.yaml'
+      - 'services/flink/**/*'
+      - 'scripts/run-flink-sentiment.sh'
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Download test data
+        run: |
+          chmod +x setup.sh
+          ./setup.sh
+
+      - name: Validate flink workflow
+        run: |
+          export COMPOSE_BAKE=true
+          docker compose -f docker-compose-flink.yaml config
+          docker compose -f docker-compose-flink.yaml up -d
+          # Wait for services to be ready
+          sleep 10
+          chmod +x scripts/run-flink-sentiment.sh
+          ./scripts/run-flink-sentiment.sh
+          # Allow time for processing
+          sleep 10
+          docker compose -f docker-compose-flink.yaml down
