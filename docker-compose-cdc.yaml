@@ -54,7 +54,6 @@ services:
       retries: 10
   sequin:
     image: sequin/sequin:latest
-    pull_policy: always
     ports:
       - "7376:7376"
     environment:

@@ -223,6 +223,9 @@ class Generator(ABC):
 
 
 class Publisher(Generator):
+    def __init__(self, client: KafkaClient):
+        super().__init__(client)
+        self.client = client
 
     def send(
         self,
@@ -235,7 +238,7 @@ class Publisher(Generator):
         start_time = time.time()
         while time.time() - start_time < max_time:
             data = message.generate(**message_params)
-            data.update({"origin_id": self.id})
+            data.update({"origin_id": self.origin_id})
             logger.info(f"publishing message - {data}")
             self.client.send_items(topic, data)
             sleep_time = random.uniform(0.1, 1.0)  # Sleep for 100-1000 milliseconds
@@ -245,13 +248,13 @@ class Publisher(Generator):
 class DBWriter(Generator):
     def __init__(
         self,
-        client,
+        client: DbClient,
         table_name: str,
         primary_keys: list[str],
         schema: dict[str, str] = {},
         create_table: bool = False,
     ):
-        self.id = uuid.uuid4().hex
+        super().__init__(client)
         self.client = client
         self.table_name: str = table_name
         self.schema: dict[str, str] = schema
@@ -312,7 +315,7 @@ class DBWriter(Generator):
         start_time = time.time()
         while time.time() - start_time < max_time:
             data = message.generate(**message_params)
-            data.update({"origin_id": self.id})
+            data.update({"origin_id": self.origin_id})
             logger.info(f"writing record- {data}")
             self.client.upsert(
                 self.table_name,
