@@ -15,7 +15,7 @@ services:
     extends:
       file: docker-compose-base.yaml
       service: generator
-    command: [ "python", "-m", "generator", "--topic", "message" ]
+    command: [ "python", "-m", "kafka_generate", "--topic", "message" ]
     scale: 3
   risingwave:
     image: risingwavelabs/risingwave
