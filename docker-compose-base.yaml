@@ -9,7 +9,6 @@ services:
     volumes:
       - ./services/notebook/warehouse:/home/app/warehouse
       - ./services/notebook/notebooks:/home/app/notebooks
-      - ./services/notebook/data:/home/app/data
       - ./services/notebook/tmp:/tmp # needed using spark image and docker file
       - ./services/notebook/output:/home/app/output
       - ./services/notebook/src:/home/app/src/

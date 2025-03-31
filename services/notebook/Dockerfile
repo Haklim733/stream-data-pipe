@@ -102,6 +102,8 @@ RUN chmod +x ${HOME}/entrypoint.sh
 
 # copy flink binaries to submit jobs only
 COPY --from=flink:1.20-scala_2.12 /opt/flink/bin /opt/flink/bin
+RUN mkdir -p /home/app/data
+RUN curl -o /home/app/data/brothers-karamazov.txt https://www.gutenberg.org/files/8576/8576-0.txt 
 
 ENTRYPOINT ["./entrypoint.sh"]
 CMD ["notebook"]
