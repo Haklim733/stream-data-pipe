@@ -1,3 +1,4 @@
+name: stream
 services:
   notebook:
     extends:
@@ -11,8 +12,36 @@ services:
       service: kafka-broker
     networks:
       datapipe_net:
+  generator:
+    extends:
+      file: docker-compose-base.yaml
+      service: generator
+    command: [ "sh", "-c", "tail -f /dev/null" ]
+    volumes:
+      - ./services/generator/src:/home/app/src
+    scale: 1
+  iceberg-rest:
+    extends:
+      file: docker-compose-spark.yaml
+      service: iceberg-rest
+    scale: 1
+    networks:
+      datapipe_net:
+  minio:
+    extends:
+      file: docker-compose-spark.yaml
+      service: minio
+    scale: 1
+    networks:
+      datapipe_net:
+  mc:
+    extends:
+      file: docker-compose-spark.yaml
+      service: mc
+    scale: 1
+    networks:
+      datapipe_net:
   flink-jobmanager:
-    container_name: flink-jobmanager
     build: ./services/flink
     ports:
       - "8081:8081"
@@ -33,14 +62,27 @@ services:
       - AWS_ACCESS_KEY_ID=admin
       - AWS_SECRET_ACCESS_KEY=password
       - AWS_REGION=us-east-1
+      - JOB_MANAGER_HEAP_SIZE=1024m       # Total JVM heap for JobManager
+      - FLINK_JM_HEAP=1024m               # (alternative, for older Flink)
+      - FLINK_JM_HEAP_MB=1024             # (alternative, for older Flink)
+      - FLINK_JM_CPU_CORES=1              # Logical CPU cores (if supported)
+      - HADOOP_CONF_DIR=/opt/flink/conf/hadoop # Assuming this path exists and can be used for custom config
+      - FLINK_PROPERTIES_hadoop.fs.s3a.endpoint=http://minio:9000
+      - FLINK_PROPERTIES_hadoop.fs.s3a.access.key=admin
+      - FLINK_PROPERTIES_hadoop.fs.s3a.secret.key=password
+      - FLINK_PROPERTIES_hadoop.fs.s3a.path.style.access=true
+      - FLINK_PROPERTIES_hadoop.fs.s3a.impl=org.apache.hadoop.fs.s3a.S3AFileSystem
+      - FLINK_PROPERTIES_hadoop.fs.s3a.aws.credentials.provider=org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider # Or EnvironmentVariableCredentialsProvider
+      - FLINK_PROPERTIES_fs.s3a.connection.ssl.enabled=false # Explicitly disable SSL for HTTP
     volumes:
       - ./services/flink/src:/opt/flink/app
       - ./services/flink/log/jobmanager:/opt/flink/log
       - ./services/flink/checkpoints/jobmanager:/opt/flink/checkpoints
       - ./services/flink/checkpoints/savepoints:/opt/flink/savepoints
+      # - ./services/flink/config.yaml:/opt/flink/conf/config.yaml
+    # entrypoint: ["/opt/flink/sql-client.sh", "embedded", "shell"]
   flink-taskmanager:
     build: ./services/flink
-    container_name: flink-taskmanager
     depends_on:
       - flink-jobmanager
     command: taskmanager
@@ -59,5 +101,17 @@ services:
       - AWS_ACCESS_KEY_ID=admin
       - AWS_SECRET_ACCESS_KEY=password
       - AWS_REGION=us-east-1
+      - TASK_MANAGER_HEAP_SIZE=1024m      # Total JVM heap for TaskManager
+      - FLINK_TM_HEAP=1024m               # (alternative, for older Flink)
+      - FLINK_TM_HEAP_MB=1024             # (alternative, for older Flink)
+      - FLINK_TM_TASK_SLOTS=2             # Number of slots (parallelism)
+      - FLINK_TM_CPU_CORES=1              # Logical CPU cores (if supported)
+      - FLINK_PROPERTIES_hadoop.fs.s3a.endpoint=http://minio:9000
+      - FLINK_PROPERTIES_hadoop.fs.s3a.access.key=admin
+      - FLINK_PROPERTIES_hadoop.fs.s3a.secret.key=password
+      - FLINK_PROPERTIES_hadoop.fs.s3a.path.style.access=true
+      - FLINK_PROPERTIES_hadoop.fs.s3a.impl=org.apache.hadoop.fs.s3a.S3AFileSystem
+      - FLINK_PROPERTIES_hadoop.fs.s3a.aws.credentials.provider=org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider # Or EnvironmentVariableCredentialsProvider
+      - FLINK_PROPERTIES_fs.s3a.connection.ssl.enabled=false # Explicitly disable SSL for HTTP
 networks:
   datapipe_net:

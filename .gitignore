@@ -31,3 +31,7 @@ build/
 
 #python
 **/__pycache__/*
+
+**/spark-logs/*
+**/spark-events/*
+**/spark-events/*

@@ -1,10 +1,11 @@
+name: stream
 services:
   notebook:
     extends:
       file: docker-compose-base.yaml
       service: notebook
     depends_on:
-      - rest
+      - iceberg-rest
       - minio
   kafka-broker:
     extends:
@@ -14,11 +15,158 @@ services:
     extends:
       file: docker-compose-base.yaml
       service: generator
-    command: [ "python", "-m", "generator", "--topic", "message" ]
-    scale: 2
-  rest:
-    image: apache/iceberg-rest-fixture
-    container_name: iceberg-rest
+    command: [ "sh", "-c", "tail -f /dev/null" ]
+    volumes:
+      - ./services/generator/src:/home/app/src
+    scale: 1
+  spark-master: 
+    build: 
+      context: services/spark
+      dockerfile: Dockerfile
+    hostname: spark-master
+    container_name: stream-spark-master
+    networks:
+      datapipe_net:
+    depends_on:
+      iceberg-rest:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    environment:
+      - BOOTSTRAP_SERVERS=kafka-broker:9092
+      - SPARK_HOME=/opt/bitnami/spark
+      - SPARK_MASTER=spark://spark-master:7077
+      - SPARK_MASTER_PORT=7077
+      - SPARK_LOCAL_IP=spark-master
+      - SPARK_MASTER_HOST=spark-master
+      - SPARK_WORKLOAD=master
+      - AWS_ACCESS_KEY_ID=admin
+      - AWS_SECRET_ACCESS_KEY=password
+      - AWS_REGION=us-east-1
+      - SPARK_WEBUI_PORT=8080
+      - SPARK_MASTER_LOG=/opt/bitnami/spark/logs/spark-master.out
+      - SPARK_WORKER_LOG=/opt/bitnami/spark/logs/spark-worker.out
+      - SPARK_MODE=master
+      - SPARK_RPC_AUTHENTICATION_ENABLED=no
+      - SPARK_RPC_ENCRYPTION_ENABLED=no
+      - SPARK_LOCAL_STORAGE_ENCRYPTION_ENABLED=no
+      - SPARK_SSL_ENABLED=no
+      - SPARK_VERSION=3.5.6
+      - SPARK_MAJOR_VERSION=3.5
+    healthcheck:
+      test: ["CMD", "pgrep", "-f", "org.apache.spark.deploy.master.Master"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    volumes:
+      - ./services/spark/spark-logs:/opt/bitnami/spark/logs
+      - ./services/spark/spark-defaults.conf:/opt/bitnami/spark/conf/spark-defaults.conf
+      - ./services/spark/log4j2.properties:/opt/bitnami/spark/conf/log4j2.properties:ro
+      - ./services/notebook/src:/home/app/src:ro
+    ports:
+      - "8080:8080"
+      - "7077:7077"
+    command: /opt/bitnami/spark/bin/spark-class org.apache.spark.deploy.master.Master --host spark-master --port 7077 --webui-port 8080
+  spark-history:
+    image: bitnami/spark:3.5.6
+    depends_on:
+      spark-master:
+        condition: service_healthy
+    networks:
+      datapipe_net:
+    volumes:
+      - ./services/spark/spark-logs:/opt/bitnami/spark/logs
+      - ./services/spark/spark-defaults.conf:/opt/bitnami/spark/conf/spark-defaults.conf
+      - ./services/spark/log4j2.properties:/opt/bitnami/spark/conf/log4j2.properties:ro
+    ports:
+      - "18080:18080"
+    environment:
+      - SPARK_HOME=/opt/bitnami/spark
+      - SPARK_VERSION=3.5.6
+      - SPARK_MAJOR_VERSION=3.5
+      - SPARK_HISTORY_OPTS=-Dspark.history.fs.logDirectory=file:///opt/bitnami/spark/logs
+    command: /opt/bitnami/spark/bin/spark-class org.apache.spark.deploy.history.HistoryServer
+  spark-connect:
+    build: 
+      context: services/spark
+      dockerfile: Dockerfile
+    depends_on:
+      spark-master:
+        condition: service_healthy
+    networks:
+      datapipe_net:
+    environment:
+      - SPARK_HOME=/opt/bitnami/spark
+      - SPARK_MASTER=spark://spark-master:7077
+      - SPARK_CONNECT_PORT=15002
+      - SPARK_VERSION=3.5.6
+      - SPARK_MAJOR_VERSION=3.5
+      - SPARK_CONNECT_GRPC_BINDING_PORT=15002
+      - SPARK_CONNECT_GRPC_BINDING_HOST=0.0.0.0
+      - SPARK_CONNECT_GRPC_ARROW_ENABLED=true
+      - SPARK_CONNECT_SERVER_PORT=15002
+      - SPARK_CONNECT_SERVER_HOST=0.0.0.0
+      - AWS_REGION=us-east-1
+      - AWS_ACCESS_KEY_ID=admin
+      - AWS_SECRET_ACCESS_KEY=password
+    volumes:
+      - ./services/spark/spark-logs:/opt/bitnami/spark/logs
+      - ./services/spark/spark-defaults.conf:/opt/bitnami/spark/conf/spark-defaults.conf
+      - ./services/spark/log4j2.properties:/opt/bitnami/spark/conf/log4j2.properties:ro
+    ports:
+      - "15002:15002"
+    command: spark-submit --class org.apache.spark.sql.connect.service.SparkConnectServer
+    entrypoint: ["/bin/bash", "-c", "mkdir -p /opt/bitnami/spark/logs/app && exec \"$@\"", "--"]
+  spark-worker:
+    build: 
+      context: services/spark
+      dockerfile: Dockerfile
+    depends_on:
+      spark-master:
+        condition: service_healthy
+    networks:
+      datapipe_net:
+    environment:
+      - SPARK_HOME=/opt/bitnami/spark
+      - SPARK_MODE=worker
+      - SPARK_MASTER=spark://spark-master:7077
+      - SPARK_MASTER_HOST=spark-master
+      - SPARK_WEBUI_PORT=8080
+      - SPARK_MASTER_LOG=/opt/bitnami/spark/logs/spark-master.out
+      - SPARK_WORKER_LOG=/opt/bitnami/spark/logs/spark-worker.out
+      - SPARK_WORKER_CORES=2  # Increased from 1
+      - SPARK_WORKER_MEMORY=2G  # Increased from 1G
+      - SPARK_DRIVER_MEMORY=1G
+      - SPARK_EXECUTOR_MEMORY=1G
+      - SPARK_WORKLOAD=worker
+      - SPARK_LOCAL_IP=spark-worker
+      - AWS_ACCESS_KEY_ID=admin
+      - AWS_SECRET_ACCESS_KEY=password
+      - AWS_REGION=us-east-1
+      - SPARK_EXECUTOR_LOGS_DIR=/opt/bitnami/spark/logs/executor
+      - SPARK_VERSION=3.5.6
+      - SPARK_MAJOR_VERSION=3.5
+      # Spark 3.5 performance optimizations
+      - SPARK_SQL_ADAPTIVE_ENABLED=true
+      - SPARK_SQL_ADAPTIVE_COALESCE_PARTITIONS_ENABLED=true
+      - SPARK_SQL_ADAPTIVE_SKEW_JOIN_ENABLED=true
+      - SPARK_SQL_ADAPTIVE_LOCAL_SHUFFLE_READER_ENABLED=true
+    healthcheck:
+      test: ["CMD", "netstat", "-tuln", "|", "grep", ":8081"]
+      interval: 15s
+      timeout: 10s
+      retries: 3
+      start_period: 45s
+    volumes:
+      - ./services/spark/spark-logs:/opt/bitnami/spark/logs
+      - ./services/spark/spark-defaults.conf:/opt/bitnami/spark/conf/spark-defaults.conf
+      - ./services/spark/log4j2.properties:/opt/bitnami/spark/conf/log4j2.properties:ro
+    command: /opt/bitnami/spark/bin/spark-class org.apache.spark.deploy.worker.Worker spark://spark-master:7077
+    scale: 2  # This creates 2 worker instances
+  iceberg-rest:
+    container_name: stream-iceberg-rest
+    image: apache/iceberg-rest-fixture:1.9.1
     networks:
       datapipe_net:
     ports:
@@ -27,12 +175,30 @@ services:
       - AWS_ACCESS_KEY_ID=admin
       - AWS_SECRET_ACCESS_KEY=password
       - AWS_REGION=us-east-1
-      - CATALOG_WAREHOUSE=s3://warehouse/
+      - CATALOG_WAREHOUSE=s3://iceberg/
       - CATALOG_IO__IMPL=org.apache.iceberg.aws.s3.S3FileIO
       - CATALOG_S3_ENDPOINT=http://minio:9000
+      - CATALOG_S3_REGION=us-east-1
+      - CATALOG_S3_ACCESS_KEY_ID=admin
+      - CATALOG_S3_SECRET_ACCESS_KEY=password
+      - CATALOG_S3_FORCE_PATH_STYLE=true
+      - CATALOG_S3_SSL_ENABLED=false
+      - CATALOG_S3_CONNECTION_TIMEOUT=60000
+      - CATALOG_S3_SOCKET_TIMEOUT=60000
+      - CATALOG_S3_MAX_CONNECTIONS=100
+    depends_on:
+      minio:
+        condition: service_healthy
+      mc:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8181/v1/config"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
   minio:
     image: minio/minio
-    container_name: minio
     environment:
       - MINIO_ROOT_USER=admin
       - MINIO_ROOT_PASSWORD=password
@@ -40,32 +206,40 @@ services:
     networks:
       datapipe_net:
         aliases:
-          - warehouse.minio
+          - iceberg.minio
     ports:
       - 9001:9001
       - 9000:9000
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
     command: [ "server", "/data", "--console-address", ":9001" ]
   mc:
     depends_on:
       - minio
     image: minio/mc
-    container_name: mc
     networks:
       datapipe_net:
     environment:
       - AWS_ACCESS_KEY_ID=admin
       - AWS_SECRET_ACCESS_KEY=password
       - AWS_REGION=us-east-1
+    healthcheck:
+      test: ["CMD", "mc", "alias", "list"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s  
+    volumes:
+      - ./scripts/init_minio.sh:/init_minio.sh
     entrypoint: |
       /bin/sh -c "
-      until (/usr/bin/mc config host add minio http://minio:9000 admin password) do echo '...waiting...' && sleep 1; done;
-      /usr/bin/mc rm -r --force minio/warehouse;
-      /usr/bin/mc mb minio/warehouse;
-      /usr/bin/mc policy set public minio/warehouse;
-      set +o history;
-      /usr/bin/mc admin user add minio user User@12345;
-      /usr/bin/mc admin policy attach minio readwrite --user user;
-      tail -f /dev/null
-      "
+      chmod +x /init_minio.sh;
+      /init_minio.sh;
+      tail -f /dev/null"
+    restart: unless-stopped
 networks:
   datapipe_net:

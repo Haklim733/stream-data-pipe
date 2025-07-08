@@ -1,3 +1,4 @@
+name: stream
 services:
   notebook:
     extends:

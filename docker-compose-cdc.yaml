@@ -1,3 +1,4 @@
+name: stream
 services:
   kafka-broker:
     extends:

@@ -13,6 +13,9 @@ logger = logging.getLogger(__name__)
 
 
 def main(topic: str, max_time: int):
+    # Debug: print the type and value received
+    print(f"DEBUG: main() received max_time type: {type(max_time)}, value: {max_time}")
+
     if not max_time:
         max_time = 120
     client = KafkaClient(BOOTSTRAP_SERVERS)
@@ -38,6 +41,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--max-time",
         dest="max_time",
+        type=int,
         required=False,
         help="max time (sec) to generate messages and publish to kafka topic",
     )
@@ -45,5 +49,8 @@ if __name__ == "__main__":
     argv = sys.argv[1:]
     known_args, _ = parser.parse_known_args(argv)
     max_time = known_args.max_time or 120
+
+    # Debug: print the type and value
+    print(f"DEBUG: max_time type: {type(max_time)}, value: {max_time}")
 
     main(topic=known_args.topic, max_time=max_time)

@@ -7,8 +7,6 @@ import re
 import sys
 import typing
 
-from pyiceberg.exceptions import NamespaceAlreadyExistsError, NoSuchTableError
-from pyiceberg.catalog import load_catalog
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import from_json, col
 from pyspark.sql.types import (
@@ -30,10 +28,12 @@ from pyspark.sql.types import (
 
 
 RUNTIME_ENV = os.getenv("RUNTIME_ENV", "local")
-BOOTSTRAP_SERVERS = os.getenv("BOOTSTRAP_SERVERS", "localhost:19092")
+BOOTSTRAP_SERVERS = os.getenv(
+    "BOOTSTRAP_SERVERS", "kafka-broker:19092"
+)  # 19092 is external
 AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID", "admin")
 AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY", "password")
-S3_BUCKET = os.getenv("S3_BUCKET", "warehouse")
+S3_BUCKET = os.getenv("S3_BUCKET", "iceberg")
 
 logger = logging.getLogger(__name__)
 
@@ -47,9 +47,13 @@ class FileFormat(Enum):
 
 # Create a SparkSession
 jars = [
-    "org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.4",
-    "org.apache.spark:spark-avro_2.12:3.5.4",
-    "org.apache.iceberg:iceberg-spark-runtime-3.5_2.12:1.8.0",
+    "org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.6",
+    "org.apache.spark:spark-token-provider-kafka-0-10_2.12:3.5.6",
+    "org.apache.spark:spark-avro_2.12:3.5.6",
+    "org.apache.iceberg:iceberg-spark-runtime-3.5_2.12:1.9.1",
+    "org.apache.kafka:kafka-clients:3.4.1",
+    "org.apache.commons:commons-pool2:2.11.1",
+    "com.github.luben:zstd-jni:1.5.2-5",
 ]
 # Dockerfile installed following packages
 # "org.apache.spark:spark-token-provider-kafka-0-10_2.12:3.5.4",
@@ -58,23 +62,16 @@ jars = [
 
 spark = (
     SparkSession.builder.appName("KafkaStreaming")
-    .master("local[1]")
     .config("spark.streaming.stopGracefullyOnShutdown", "true")
     .config("spark.sql.streaming.schemaInference", "true")
     .config("spark.jars.packages", ",".join(jars))
-    .config(
-        "spark.sql.extensions",
-        "org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions",
-    )
-    .config("spark.sql.catalog.default", "org.apache.iceberg.spark.SparkCatalog")
-    .config("spark.sql.defaultCatalog", "default")
-    .config("spark.sql.catalog.default.type", "rest")
-    .config("spark.sql.catalog.default.uri", "http://iceberg-rest:8181")
-    .config("spark.sql.catalog.default.io-impl", "org.apache.iceberg.aws.s3.S3FileIO")
-    .config("spark.sql.catalog.default.s3.endpoint", "http://minio:9000")
-    .config("spark.sql.catalog.default.warehouse", "s3://warehouse/wh")
-    .config("spark.sql.catalog.default.s3.access-key", AWS_ACCESS_KEY_ID)
-    .config("spark.sql.catalog.default.s3.secret-key", AWS_SECRET_ACCESS_KEY)
+    .config("spark.sql.catalog.iceberg.type", "rest")
+    .config("spark.sql.catalog.iceberg.uri", "http://iceberg-rest:8181")
+    .config("spark.sql.catalog.iceberg.warehouse", "s3a://iceberg/wh")
+    .config("spark.sql.catalog.iceberg.s3.endpoint", "http://minio:9000")
+    .config("spark.sql.catalog.iceberg.s3.path-style-access", "true")
+    .config("spark.sql.catalog.iceberg.s3.access-key", AWS_ACCESS_KEY_ID)
+    .config("spark.sql.catalog.iceberg.s3.secret-key", AWS_SECRET_ACCESS_KEY)
     .getOrCreate()
 )
 
@@ -95,35 +92,41 @@ map_types_avro = {
 
 
 def initialize_iceberg(topic: str, fields: str, format: str):
-    catalog = load_catalog(name="rest", uri="http://iceberg-rest:8181")
+    """
+    Initialize Iceberg namespace and table using Spark SQL
+    """
+    try:
+        # Create namespace using Spark SQL
+        spark.sql("CREATE NAMESPACE IF NOT EXISTS iceberg.spark")
+        logger.info("Created namespace 'iceberg.spark'")
+    except Exception as e:
+        logger.info(f"Namespace 'iceberg.spark' already exists or error: {e}")
 
     try:
-        catalog.create_namespace("spark")
-    except NamespaceAlreadyExistsError:
-        pass
+        # Drop table if it exists
+        spark.sql(f"DROP TABLE IF EXISTS iceberg.spark.`{topic}`")
+        logger.info(f"Dropped existing table iceberg.spark.{topic}")
+    except Exception as e:
+        logger.info(f"Table iceberg.spark.{topic} did not exist or error: {e}")
 
-    try:
-        catalog.drop_table(f"spark.{topic}")
-    except NoSuchTableError:
-        pass
+    # Create table using Spark SQL
+    create_table_sql = f"""
+    CREATE TABLE iceberg.spark.`{topic}`(
+        {fields}
+    )
+    USING iceberg
+    TBLPROPERTIES(
+        'write.format.default'= '{format}'
+    )
+    """
 
-    logger.info("Creating iceberg database")
-    spark.sql("CREATE DATABASE IF NOT EXISTS spark")
     logger.info(
-        f"Creating iceberg table spark.{topic} with fields {fields} in format {format}"
+        f"Creating iceberg table iceberg.spark.{topic} with fields {fields} in format {format}"
     )
-    spark.sql(f"DROP TABLE IF EXISTS default.spark.{topic}")
-    spark.sql(
-        f"""
-        CREATE TABLE default.spark.{topic}(
-            {fields}
-        )
-        USING iceberg
-        TBLPROPERTIES(
-            'write.format.default'= '{format}'
-        )
-        """
-    )
+    logger.info(f"SQL: {create_table_sql}")
+
+    spark.sql(create_table_sql)
+    logger.info(f"Successfully created table iceberg.spark.{topic}")
 
 
 def sanitize_avro(s):
@@ -147,7 +150,7 @@ def json_to_spark_type(json_type):
         raise ValueError(f"Unsupported JSON type: {json_type}")
 
 
-def json_schema_to_spark(schema_dict: dict[str, typing.Any]):
+def json_schema_to_spark(schema_dict: typing.Dict[str, typing.Any]):
     fields = []
     for k, v in schema_dict.items():
         field_type = json_to_spark_type(v)
@@ -156,7 +159,7 @@ def json_schema_to_spark(schema_dict: dict[str, typing.Any]):
     return StructType(fields)
 
 
-def avro_schema_to_spark(schema_d: list[dict[str, typing.Any]]):
+def avro_schema_to_spark(schema_d: typing.List[typing.Dict[str, typing.Any]]):
     avro_to_spark_type = {
         "string": StringType(),
         "long": LongType(),
@@ -235,8 +238,8 @@ def main(
     format: FileFormat = FileFormat.TEXT,
     schema: str | None = None,
 ):
-    schema_d = json.loads(schema)
-    file_format = FileFormat(format)
+    schema_d = json.loads(schema) if schema else None
+    file_format = format  # Use the enum directly
     iceberg_format = "parquet"
 
     spark_schema = generate_spark_schema(schema_d, file_format)
@@ -246,7 +249,7 @@ def main(
 
     if file_format == FileFormat.AVRO:
         assert isinstance(schema_d, list)
-        iceberg_format = "format"
+        iceberg_format = "avro"  # Fixed: was "format"
     else:
         assert isinstance(schema_d, dict)
 
@@ -257,7 +260,7 @@ def main(
         .option("kafka.bootstrap.servers", BOOTSTRAP_SERVERS)
         .option("failOnDataLoss", "false")
         .option("subscribe", topic)
-        .option("mode", "PERMISSIVE")  # does not work with pyiceberg to_pandas
+        .option("mode", "PERMISSIVE")
         .load()
     )
     # if file_format == FileFormat.AVRO:
@@ -289,7 +292,7 @@ def main(
             .outputMode("append")
             .option("checkpointLocation", "/tmp/checkpoint")
             .option("mode", "PERMISSIVE")
-            .toTable(f"default.spark.{topic}")
+            .toTable(f"iceberg.spark.{topic}")
             .awaitTermination(terminate)
         )
     else:
@@ -340,10 +343,18 @@ if __name__ == "__main__":
     if known_args.format == "AVRO" and not known_args.schema:
         raise Exception("Schema must be provided if format is AVRO")
 
+    # Convert string format to FileFormat enum
+    file_format = FileFormat.TEXT  # default
+    if known_args.format:
+        try:
+            file_format = FileFormat(known_args.format.lower())
+        except ValueError:
+            raise ValueError(f"Unsupported format: {known_args.format}")
+
     main(
         topic=known_args.topic,
         output=known_args.output,
         terminate=known_args.terminate,
-        format=known_args.format,
+        format=file_format,
         schema=known_args.schema,
     )

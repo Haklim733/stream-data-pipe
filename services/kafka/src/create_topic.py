@@ -50,7 +50,7 @@ def check_file_size(file_path):
 
 def sanitize_avro(s):
     """
-    Sanitizes a string to match the pattern (?:^|\.)[A-Za-z_][A-Za-z0-9_]*$
+    Sanitizes a string to match the pattern (?:^|\\.)[A-Za-z_][A-Za-z0-9_]*$
     """
     s = re.sub(r"[^\w.]", "_", s)
     s = s.strip("_")
@@ -137,40 +137,7 @@ def send_to_kafka(
     return {"messages": messages, "file_size": file_size}
 
 
-def main(
-    topic_name: str,
-    file_path: str = None,
-    format: str = None,
-    client_id: str = "local",
-):
-    start_time = time.time()
-
-    bootstrap_servers = BOOTSTRAP_SERVERS.split(",")
-    admin_client = KafkaAdminClient(
-        bootstrap_servers=bootstrap_servers,
-        client_id=client_id,
-    )
-
-    if not format:
-        format = "text"
-
-    create_topic(topic_name=topic_name, admin_client=admin_client)
-    if file_path:
-        check_file_size(file_path)
-        summary = send_to_kafka(
-            topic_name=topic_name,
-            bootstrap_servers=bootstrap_servers,
-            format=format,
-            file_path=file_path,
-        )
-        logger.info(
-            f"Sent {summary['messages']} messages to Kafka for file in {summary['file_size']:.2f} bytes"
-        )
-    end_time = time.time()
-    logger.info(f"execution time: {end_time - start_time:.2f} seconds")
-
-
-if __name__ == "__main__":
+def main():
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--topic", dest="topic", required=False, help="specify kafka topic to consume"
@@ -185,6 +152,7 @@ if __name__ == "__main__":
         "--format",
         dest="format",
         required=False,
+        default="text",
         help="specify file format when streaming to kafka topic",
     )
     parser.add_argument(
@@ -197,6 +165,29 @@ if __name__ == "__main__":
     argv = sys.argv[1:]
     known_args, _ = parser.parse_known_args(argv)
 
-    main(
-        topic_name=known_args.topic, file_path=known_args.file, format=known_args.format
+    start_time = time.time()
+
+    bootstrap_servers = BOOTSTRAP_SERVERS.split(",")
+    admin_client = KafkaAdminClient(
+        bootstrap_servers=bootstrap_servers,
+        client_id="local",
     )
+
+    create_topic(topic_name=known_args.topic, admin_client=admin_client)
+    if known_args.file:
+        check_file_size(known_args.file)
+        summary = send_to_kafka(
+            topic_name=known_args.topic,
+            bootstrap_servers=bootstrap_servers,
+            format=known_args.format,
+            file_path=known_args.file,
+        )
+        logger.info(
+            f"Sent {summary['messages']} messages to Kafka for file in {summary['file_size']:.2f} bytes"
+        )
+    end_time = time.time()
+    logger.info(f"execution time: {end_time - start_time:.2f} seconds")
+
+
+if __name__ == "__main__":
+    main()

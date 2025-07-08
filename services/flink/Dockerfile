@@ -5,9 +5,9 @@ ENV SHELL=/bin/bash \
     LANG=C.UTF-8 \
     LANGUAGE=C.UTF-8
 
-ENV KAFKA_VERSION=3.3.0
+ENV KAFKA_VERSION=3.4.0
 ENV FLINK_VERSION=1.20
-ENV ICEBERG_VERSION=1.8.0
+ENV ICEBERG_VERSION=1.9.1
 ENV SCALA_VERSION=2.12
 
 RUN apt-get update -y && \
@@ -32,16 +32,29 @@ RUN wget https://repo1.maven.org/maven2/org/apache/flink/flink-sql-connector-kaf
 
 RUN wget https://repo1.maven.org/maven2/org/apache/kafka/kafka-clients/3.9.0/kafka-clients-3.9.0.jar -P /opt/flink/lib
 
+# Add AWS bundle for S3A connectivity (CRITICAL for MinIO)
+RUN wget https://repo1.maven.org/maven2/org/apache/iceberg/iceberg-aws-bundle/${ICEBERG_VERSION}/iceberg-aws-bundle-${ICEBERG_VERSION}.jar -P /opt/flink/lib
+
+# Add hadoop-common.jar (CRITICAL dependency for hadoop-aws)
+RUN wget https://repo1.maven.org/maven2/org/apache/hadoop/hadoop-common/3.3.6/hadoop-common-3.3.6.jar -P /opt/flink/lib
+
 RUN chown -R flink:flink /opt/flink/lib
 
-RUN mkdir ./plugins/s3-fs-presto && \
-    cp ./opt/flink-s3-fs-presto-1.20.1.jar ./plugins/s3-fs-presto/
+# Download S3 filesystem plugins properly
+RUN mkdir -p /opt/flink/plugins/s3-fs-presto && \
+    wget -O /opt/flink/plugins/s3-fs-presto/flink-s3-fs-presto-1.20.1.jar \
+    https://repo1.maven.org/maven2/org/apache/flink/flink-s3-fs-presto/1.20.1/flink-s3-fs-presto-1.20.1.jar
 
-RUN mkdir ./plugins/s3-fs-hadoop && \
-    cp ./opt/flink-s3-fs-hadoop-1.20.1.jar ./plugins/s3-fs-hadoop/
+RUN mkdir -p /opt/flink/plugins/s3-fs-hadoop && \
+    wget -O /opt/flink/plugins/s3-fs-hadoop/flink-s3-fs-hadoop-1.20.1.jar \
+    https://repo1.maven.org/maven2/org/apache/flink/flink-s3-fs-hadoop/1.20.1/flink-s3-fs-hadoop-1.20.1.jar
 
 RUN wget https://raw.githubusercontent.com/nltk/nltk_data/gh-pages/packages/tokenizers/punkt_tab.zip
 RUN mkdir -p /opt/flink/nltk_data/tokenizers && \
     unzip punkt_tab.zip -d /opt/flink/nltk_data/tokenizers \
     && rm -f punkt_tab.zip
 RUN zip -j punkt_tab.zip /opt/flink/nltk_data/tokenizers/punkt_tab/english/*
+
+# Copy SQL client 
+COPY ./sql-client.sh /opt/flink/
+RUN chmod +x /opt/flink/sql-client.sh
