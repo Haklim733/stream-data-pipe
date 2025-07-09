@@ -1,78 +1,108 @@
-# Overview
+# Stream Data Pipeline
 
-Repo to learn and test real-time data ingestion and processing using kafka,flink, spark streaming, ml inference and apache iceberg.
+A testing environment for real-time data ingestion and processing using modern streaming technologies. This project demonstrates various data pipeline patterns from simple message streaming to complex ML inference workflows.
 
 ![](./assets/stream-data-pipeline.svg)
 
-# Data flow
+## Data Flow Patterns
 
-1. apache kafka -> apache flink -> kafka
-2. apache kafka -> apache flink -> iceberg / s3
-3. apache kafka -> apache spark -> iceberg / s3
-4. apache kafka -> risingwave
-5. apache kafka -> emotion sentiment analysis (python) -> kafka
-6. postgres -> sequin -> kafka
+This project showcases several streaming data pipeline patterns:
 
-# Examples
+1. **Apache Kafka → Apache Flink → Kafka** - Real-time stream processing with sentiment analysis
+2. **Apache Kafka → Apache Spark → Iceberg/S3** - Structured streaming with data lake storage
+3. **Apache Kafka → RisingWave** - Real-time database with materialized views
+4. **Apache Kafka → ML Inference (Python) → Kafka** - AI/ML pipeline with emotion analysis
+5. **PostgreSQL → Sequin → Kafka** - Change Data Capture (CDC) streaming
 
-The first step is to run `chmod +x setup.sh && ./setup.sh` from the project root. This will download the raw source data that will be sent to kafka line by line.
+## Getting Started
 
-## apache kafka -> apache flink -> kafka
+The first step is to run the setup script to download raw source data that will be streamed to Kafka:
 
-### Sentiment Analysis
+```bash
+chmod +x setup.sh && ./setup.sh
+```
 
-This creates a kafka topic as a source and then runs a flink job that tokenizes and classifies each line of text. The results are piped into a separate kafka topic.
+## Examples
 
-Steps:
-(1) Run `export COMPOSE_BAKE=true && docker compose -f docker-compose-flink.yaml up -d --build`
-(2) After the kafka-broker is up and running, run `./scripts/run-flink-sentiment.sh`
-(3) Navigate to `localhost:8888` and opening the `kafka-flink-sentiment` notebook to look at the results.
+### 1. Apache Kafka → Apache Flink → Kafka
 
-## apache kafka -> ml inference (python) -> kafka
+#### Sentiment Analysis Pipeline
 
-Messages are published to a kafka topic which is ingested by the 'ml' service using python faststream and huggingface to produce an emotion sentiment analysis that is sent back as a kafka topic. The topic names can be set in the docker-compose.yaml for notebook and ml services.
+This example creates a Kafka topic as a source and runs a Flink job that tokenizes and classifies each line of text. The results are piped into a separate Kafka topic for downstream consumption.
 
-Steps:
-(1) Run `export COMPOSE_BAKE=true && docker compose -f docker-compose-ml.yaml up -d --build`
-(2) navigate to `localhost:8888` and execute the cells in the `kafka-ml-inference` notebook.
+**Steps:**
+1. Start the Flink environment: `export COMPOSE_BAKE=true && docker compose -f docker-compose-flink.yaml up -d --build`
+2. After the Kafka broker is up and running, execute: `./scripts/run-flink-sentiment.sh`
+3. Navigate to `localhost:8888` and open the `kafka-flink-sentiment` notebook to analyze the results
+
+The Flink job performs simple keyword-based sentiment analysis on incoming messages and outputs structured results with sentiment classifications.
+
+### 2. Apache Kafka → Apache Spark → Iceberg/Storage
+
+This pipeline publishes data to a Kafka topic which is then ingested using Spark Structured Streaming and saved to an Iceberg table. The results provide a scalable, ACID-compliant data lake solution.
+
+**Features:**
+- Specify `--output=iceberg` when running the relevant docker exec command to save to Iceberg
+- Specify `--output=<path>` to save to file storage
+- Supports both JSON and Avro formats with schema validation
+
+**Steps:**
+1. Start the Spark environment: `docker compose -f docker-compose-spark.yaml up -d --build && ./scripts/run-spark-stream.sh`
+2. View results by navigating to `localhost:8888` and opening the `kafka-spark-stream` notebook
+
+### 3. Apache Kafka → RisingWave
+
+This example demonstrates RisingWave, a real-time database that ingests Kafka topics as source tables and creates materialized views for real-time analytics.
+
+**Steps:**
+1. Start RisingWave: `docker compose -f docker-compose-rw.yaml up -d --build`
+2. Navigate to `localhost:8888` and execute the cells in the `kafka-risingwave` notebook
+
+**Alternative Access:**
+You can also query the materialized views directly via PostgreSQL:
+```bash
+psql -h localhost -p 4566 -d dev -U root
+```
+Then query the `<topic>_view` table for real-time results.
+### 4. Apache Kafka → ML Inference (Python) → Kafka
+
+This pipeline demonstrates real-time ML inference using Python FastStream and Hugging Face transformers. Messages are published to a Kafka topic, processed by the ML service for emotion sentiment analysis, and results are sent back to a separate Kafka topic.
+
+**Configuration:**
+- Topic names can be configured in `docker-compose.yaml` for notebook and ML services
+- The ML service uses a pre-trained emotion classification model (DistilRoBERTa)
+
+**Steps:**
+1. Start the ML pipeline: `export COMPOSE_BAKE=true && docker compose -f docker-compose-ml.yaml up -d --build`
+2. Navigate to `localhost:8888` and execute the cells in the `kafka-ml-inference` notebook
 
 
-### apache kafka -> s3 & apache kafka -> apache flink -> s3
+### 5. PostgreSQL → Sequin → Kafka
 
-work in progress
+This CDC (Change Data Capture) pipeline demonstrates streaming database changes to Kafka. The generator service inserts messages into PostgreSQL, and the Sequin service streams these changes to a Kafka topic named 'cdc'.
 
-### apache kafka -> apache spark -> iceberg / storage
+**Monitoring:**
+- Verify stream source and sink throughput at http://localhost:7376/
+- Check CDC messages using the 'postgres-cdc' notebook at localhost:8888
 
-This program publishes data to a kafka topic which is then ingested using spark structured streaming and saved to an iceberg table. Results can be seen by navigating to `localhost:8888` and opening the `kafka-spark-stream` notebook.
+## Logs and Debugging
 
-Specify --output=iceberg when running the relevant docker exec command to save to iceberg.
-Specify --output=><path> when running the relevant docker exec command to save to file.
+Service logs are available in mounted volumes as specified in the docker-compose.yaml files:
+- Flink logs: `services/flink/log/jobmanager`
+- Spark logs: `services/spark/logs`
+- Kafka logs: `services/kafka/logs`
 
-Steps:
-(1) Run `docker compose -f docker-compose-spark.yaml up -d --build && ./scripts/run-spark-stream.sh`
-(2) Results can be seen by navigating to `localhost:8888` and opening the `kafka-spark-stream` notebook.
+## Architecture Notes
 
-## apache kafka -> risingwave
-Messages are published a kafka topic which is then ingested as a source table and materialized view using rising wave, a real-time database.
+This project extends and builds upon several open-source projects:
+- [Databricks Docker Spark Iceberg](https://github.com/databricks/docker-spark-iceberg)
+- [Quix PyFlink Deep Dive](https://quix.io/blog/pyflink-deep-dive)
+- [Flink Demos by Jaehyeon Kim](https://github.com/jaehyeon-kim/flink-demos)
 
-Steps:
-(1) Run `docker compose -f docker-compose-rw.yaml up -d --build`
-(2) Navigate to `localhost:8888` and execute the cells in the `kafka-risingwave` notebook.
-
-Results can be also seen via `psql -h localhost -p 4566 -d dev -U root` and querying the `<topic>_view` table.
-
-## postgres -> sequin -> kafka 
-Messages are inserted into postgres by generator service. Sequin service streams changes to kafka topic 'cdc'.
-
-You can verify the stream source and sink throughput by navigating to http://localhost:7376/
-You can see also verify the cdc messages using localhost:8888 and checking out the 'postgres-cdc' notebook. 
-
-## logs
-
-see mounted volumes in the docker-compose.yaml
-ex. services/flink/log/jobmanager
-
-# Notes
-
-Work is an extension of https://github.com/databricks/docker-spark-iceberg, https://quix.io/blog/pyflink-deep-dive, and
-https://github.com/jaehyeon-kim/flink-demos
+The project demonstrates modern streaming data architecture patterns including:
+- Event-driven microservices
+- Real-time ML inference
+- Change Data Capture
+- Stream processing with Apache Flink and Spark
+- Data lake storage with Apache Iceberg
+- Real-time databases with RisingWave
