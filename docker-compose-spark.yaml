@@ -63,7 +63,7 @@ services:
       - ./services/spark/spark-logs:/opt/bitnami/spark/logs
       - ./services/spark/spark-defaults.conf:/opt/bitnami/spark/conf/spark-defaults.conf
       - ./services/spark/log4j2.properties:/opt/bitnami/spark/conf/log4j2.properties:ro
-      - ./services/notebook/src:/home/app/src:ro
+      - ./services/spark/src:/home/app/src:ro
     ports:
       - "8080:8080"
       - "7077:7077"

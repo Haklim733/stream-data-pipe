@@ -50,6 +50,12 @@ This pipeline publishes data to a Kafka topic which is then ingested using Spark
 1. Start the Spark environment: `docker compose -f docker-compose-spark.yaml up -d --build && ./scripts/run-spark-stream.sh`
 2. View results by navigating to `localhost:8888` and opening the `kafka-spark-stream` notebook
 
+**Note:**
+- The Iceberg table is created with two branches: `main` and `staging`
+- The `staging` branch is used for the streaming write to follow the Write-Audit-Publish pattern
+- the writes occur in 30 second intervals
+- spark structured streaming writes does not seem to respect the write.wap options.
+
 ### 3. Apache Kafka → RisingWave
 
 This example demonstrates RisingWave, a real-time database that ingests Kafka topics as source tables and creates materialized views for real-time analytics.

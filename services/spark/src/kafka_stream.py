@@ -95,37 +95,30 @@ def initialize_iceberg(topic: str, fields: str, format: str):
     """
     Initialize Iceberg namespace and table using Spark SQL
     """
-    try:
-        # Create namespace using Spark SQL
-        spark.sql("CREATE NAMESPACE IF NOT EXISTS iceberg.spark")
-        logger.info("Created namespace 'iceberg.spark'")
-    except Exception as e:
-        logger.info(f"Namespace 'iceberg.spark' already exists or error: {e}")
+    spark.sql("CREATE NAMESPACE IF NOT EXISTS iceberg.spark")
+    logger.info("Created namespace 'iceberg.spark'")
 
-    try:
-        # Drop table if it exists
-        spark.sql(f"DROP TABLE IF EXISTS iceberg.spark.`{topic}`")
-        logger.info(f"Dropped existing table iceberg.spark.{topic}")
-    except Exception as e:
-        logger.info(f"Table iceberg.spark.{topic} did not exist or error: {e}")
-
-    # Create table using Spark SQL
-    create_table_sql = f"""
-    CREATE TABLE iceberg.spark.`{topic}`(
-        {fields}
+    spark.sql(
+        f"""CREATE OR REPLACE TABLE iceberg.spark.`{topic}` (
+        {fields} 
     )
     USING iceberg
     TBLPROPERTIES(
-        'write.format.default'= '{format}'
+        'write.format.default'= '{format}',
+        'write.parquet.compression-codec' = 'zstd',
+        'branch.enabled' = 'true',
+        'write.merge.isolation-level' = 'none',
+        "write.wap.enabled" = 'true',
+        'write.delete.enabled' = 'false',
+        'write.update.enabled' = 'false',
+        'write.upsert.enabled' = 'false',
+        'write.merge.enabled' = 'false',
+        'comment' = 'Raw data table'
     )
     """
-
-    logger.info(
-        f"Creating iceberg table iceberg.spark.{topic} with fields {fields} in format {format}"
     )
-    logger.info(f"SQL: {create_table_sql}")
-
-    spark.sql(create_table_sql)
+    spark.sql(f"ALTER TABLE iceberg.spark.`{topic}` CREATE OR REPLACE BRANCH main")
+    spark.sql(f"ALTER TABLE iceberg.spark.`{topic}` CREATE OR REPLACE BRANCH staging")
     logger.info(f"Successfully created table iceberg.spark.{topic}")
 
 
@@ -277,9 +270,7 @@ def main(
     #     ).select("data.*")
     # else:
     #     df = df.selectExpr("CAST(value AS STRING) as value")
-    spark_schema = generate_spark_schema(
-        schema_d, file_format
-    )  # using avro field type schema structure
+    spark_schema = generate_spark_schema(schema_d, file_format)
     parsed_df = (
         df.selectExpr("CAST(value AS STRING) as json_value")
         .select(from_json(col("json_value"), spark_schema).alias("data"))
@@ -290,9 +281,10 @@ def main(
         (
             parsed_df.writeStream.format("iceberg")
             .outputMode("append")
-            .option("checkpointLocation", "/tmp/checkpoint")
+            .option("checkpointLocation", f"/tmp/checkpoint-{topic}")
             .option("mode", "PERMISSIVE")
-            .toTable(f"iceberg.spark.{topic}")
+            .trigger(processingTime="30 seconds")
+            .toTable(f"iceberg.spark.{topic}.branch_staging")
             .awaitTermination(terminate)
         )
     else:
@@ -300,7 +292,7 @@ def main(
             df.writeStream.format(file_format.value)
             .option("truncate", False)
             .option("path", output)
-            .option("checkpointLocation", "/tmp/checkpoint")
+            .option("checkpointLocation", f"/tmp/checkpoint-{topic}")
             .start()
             .awaitTermination(terminate)
         )
